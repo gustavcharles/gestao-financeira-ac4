@@ -2,7 +2,7 @@
 
 Sistema web para controle financeiro inteligente, focado em gerenciamento de orçamentos e fluxo de caixa (Regime de Competência).
 
-🔗 **Acesse Online:** [https://gestao-financeira-ac4-y8nwm6hw39jxbvwdjytfkm.streamlit.app/](https://gestao-financeira-ac4-y8nwm6hw39jxbvwdjytfkm.streamlit.app/)
+🔗 **Acesse Online:** [https://gestao-financeira-ac4.streamlit.app/](https://gestao-financeira-ac4.streamlit.app/)
 
 ## ✨ Funcionalidades
 

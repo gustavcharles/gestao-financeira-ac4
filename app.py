@@ -551,7 +551,27 @@ elif selected == "Receitas":
     meses_r = sorted(df['mes_referencia'].unique(), reverse=True)
     if not meses_r: meses_r = [mes_atual]
     mes_sel_r = c1.selectbox("Mês:", ["Todos"] + list(meses_r), label_visibility="collapsed", key="filter_mes_rec")
-    c2.caption("") 
+    
+    # Quick Add Receita
+    with c2:
+        with st.popover("➕ Nova Receita", use_container_width=True):
+            st.markdown("### Nova Receita")
+            nr_val = st.number_input("Valor", min_value=0.0, step=100.0, key="quick_rec_val")
+            nr_desc = st.text_input("Descrição", key="quick_rec_desc")
+            nr_cat = st.selectbox("Categoria", st.session_state['config_categorias']['receita'], key="quick_rec_cat")
+            nr_date = st.date_input("Data", date.today(), format="DD/MM/YYYY", key="quick_rec_date")
+            
+            # Preview
+            nr_ref = get_shifted_reference_month(nr_date, nr_cat, "Receita")
+            st.caption(f"Competência: **{nr_ref}**")
+            
+            if st.button("Salvar Receita", type="primary", use_container_width=True, key="quick_rec_btn"):
+                if add_transaction({
+                    "tipo": "Receita", "data": nr_date, "mes_referencia": nr_ref,
+                    "categoria": nr_cat, "descricao": nr_desc, "valor": nr_val, "status": "Recebido"
+                }):
+                    st.session_state["toast_msg"] = f"Receita adicionada! ({nr_ref})"
+                    st.rerun() 
 
     if mes_sel_r != "Todos":
         df_r = df[(df['mes_referencia'] == mes_sel_r) & (df['tipo'] == 'Receita')]
@@ -640,13 +660,8 @@ elif selected == "Receitas":
         st.write("No transactions.")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    st.markdown("""
-    <div style="position: fixed; bottom: 30px; right: 30px;">
-        <div style="width: 50px; height: 50px; background-color: #2563EB; border-radius: 30px; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.5);">
-            <span style="font-size: 24px;">+</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # Floating button removed
+
 
 # ==========================================
 # ABA 3: DESPESAS
@@ -658,7 +673,27 @@ elif selected == "Despesas":
     meses_d = sorted(df['mes_referencia'].unique(), reverse=True)
     if not meses_d: meses_d = [mes_atual]
     mes_sel_d = c1.selectbox("Mês:", ["Todos"] + list(meses_d), label_visibility="collapsed", key="filter_mes_desp")
-    c2.button("⬇ Relatório", use_container_width=True)
+    
+    # Quick Add Despesa
+    with c2:
+        with st.popover("➕ Nova Despesa", use_container_width=True):
+            st.markdown("### Nova Despesa")
+            nd_val = st.number_input("Valor", min_value=0.0, step=10.0, key="quick_desp_val")
+            nd_desc = st.text_input("Descrição", key="quick_desp_desc")
+            nd_cat = st.selectbox("Categoria", st.session_state['config_categorias']['despesa'], key="quick_desp_cat")
+            nd_date = st.date_input("Data", date.today(), format="DD/MM/YYYY", key="quick_desp_date")
+            
+            # Preview
+            nd_ref = get_shifted_reference_month(nd_date, nd_cat, "Despesa")
+            st.caption(f"Competência: **{nd_ref}**")
+            
+            if st.button("Salvar Despesa", type="primary", use_container_width=True, key="quick_desp_btn"):
+                if add_transaction({
+                    "tipo": "Despesa", "data": nd_date, "mes_referencia": nd_ref,
+                    "categoria": nd_cat, "descricao": nd_desc, "valor": nd_val, "status": "Pendente"
+                }):
+                     st.session_state["toast_msg"] = f"Despesa adicionada! ({nd_ref})"
+                     st.rerun()
 
     if mes_sel_d != "Todos":
         df_d = df[(df['mes_referencia'] == mes_sel_d) & (df['tipo'] == 'Despesa')]

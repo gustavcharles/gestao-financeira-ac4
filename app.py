@@ -688,7 +688,7 @@ elif selected == "Receitas":
                     
                     # Edit Popover
                     with c_edit:
-                         with st.popover("✏️", use_container_width=True):
+                         with st.popover("✏️", use_container_width=True, key=f"pop_edit_r_{row['id']}"):
                                 st.markdown("### Editar")
                                 new_val = st.number_input("Valor", value=float(row['valor']), step=100.0, key=f"edit_val_r_{row['id']}")
                                 new_desc = st.text_input("Descrição", value=row['descricao'], key=f"edit_desc_r_{row['id']}")
@@ -716,7 +716,7 @@ elif selected == "Receitas":
 
                     # Delete Popover
                     with c_del:
-                        with st.popover("🗑️", use_container_width=True):
+                        with st.popover("🗑️", use_container_width=True, key=f"pop_del_r_{row['id']}"):
                             st.write("Confirma?")
                             if st.button("Sim", key=f"del_rec_{row['id']}"):
                                 if delete_transaction(row['id']):
@@ -862,7 +862,7 @@ elif selected == "Despesas":
                 c_edit_d, c_del_d = st.columns([1, 1], gap="small")
                 # Edit Popover Despesa
                 with c_edit_d:
-                     with st.popover("✏️", use_container_width=True):
+                     with st.popover("✏️", use_container_width=True, key=f"pop_edit_d_{row['id']}"):
                             st.markdown("### Editar")
                             new_val_d = st.number_input("Valor", value=float(row['valor']), step=10.0, key=f"edit_val_d_{row['id']}")
                             new_desc_d = st.text_input("Descrição", value=row['descricao'], key=f"edit_desc_d_{row['id']}")
@@ -889,7 +889,7 @@ elif selected == "Despesas":
                                     st.rerun()
 
                 with c_del_d:
-                    with st.popover("🗑️", use_container_width=True):
+                    with st.popover("🗑️", use_container_width=True, key=f"pop_del_d_{row['id']}"):
                         st.write("Confirma?")
                         if st.button("Sim", key=f"del_desp_{row['id']}"):
                             if delete_transaction(row['id']):

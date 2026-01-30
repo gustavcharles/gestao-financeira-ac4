@@ -573,7 +573,7 @@ elif selected == "Receitas":
     
     # Quick Add Receita
     with c2:
-        with st.popover("➕ Nova Receita", use_container_width=True):
+        with st.popover("➕ Nova Receita"):
             st.markdown("### Nova Receita")
             nr_val = st.number_input("Valor", min_value=0.0, step=100.0, key="quick_rec_val")
             nr_desc = st.text_input("Descrição", key="quick_rec_desc")
@@ -745,7 +745,7 @@ elif selected == "Despesas":
     
     # Quick Add Despesa
     with c2:
-        with st.popover("➕ Nova Despesa", use_container_width=True):
+        with st.popover("➕ Nova Despesa"):
             st.markdown("### Nova Despesa")
             nd_val = st.number_input("Valor", min_value=0.0, step=10.0, key="quick_desp_val")
             nd_desc = st.text_input("Descrição", key="quick_desp_desc")

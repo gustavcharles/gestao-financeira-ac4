@@ -543,7 +543,7 @@ if selected == "Dashboard":
         fig = px.area(daily, x='data', y='valor', title=None)
         fig.update_layout(
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-            xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#F1F5F9'),
+            xaxis=dict(showgrid=False, tickformat="%d/%m"), yaxis=dict(showgrid=True, gridcolor='#F1F5F9'),
             margin=dict(l=0, r=0, t=0, b=0), height=200, showlegend=False,
             font=dict(color=COLOR_TEXT)
         )

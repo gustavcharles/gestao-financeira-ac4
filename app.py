@@ -719,7 +719,13 @@ elif selected == "Receitas":
         else:
             df_r = df_r.sort_values(by="data", ascending=False)
             
+        last_m_header = None
         for idx, row in df_r.head(st.session_state['limit_rec']).iterrows():
+            current_m_header = get_month_from_date(row['data'])
+            if current_m_header != last_m_header:
+                st.markdown(f"<div style='background: #F8FAFC; padding: 5px 10px; border-radius: 5px; font-weight: 600; font-size: 0.8rem; color: #64748B; margin-top: 15px; margin-bottom: 5px;'>{current_m_header.upper()}</div>", unsafe_allow_html=True)
+                last_m_header = current_m_header
+
             d_day = row['data'].strftime("%d")
             d_month = row['data'].strftime("%b").upper()
             val_fmt = f"+ ${row['valor']:,.2f}"
@@ -889,7 +895,13 @@ elif selected == "Despesas":
         else:
             df_d = df_d.sort_values(by="data", ascending=False)
             
+        last_m_header_d = None
         for idx, row in df_d.head(st.session_state['limit_desp']).iterrows():
+            current_m_header_d = get_month_from_date(row['data'])
+            if current_m_header_d != last_m_header_d:
+                st.markdown(f"<div style='background: #F8FAFC; padding: 5px 10px; border-radius: 5px; font-weight: 600; font-size: 0.8rem; color: #64748B; margin-top: 15px; margin-bottom: 5px;'>{current_m_header_d.upper()}</div>", unsafe_allow_html=True)
+                last_m_header_d = current_m_header_d
+
             d_day = row['data'].strftime("%d")
             d_month = row['data'].strftime("%b").upper()
             val_fmt = f"- R$ {row['valor']:,.2f}"

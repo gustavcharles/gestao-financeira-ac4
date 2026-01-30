@@ -51,6 +51,11 @@ def init_state():
     if 'dark_mode' not in st.session_state:
         st.session_state['dark_mode'] = False
 
+    if 'limit_rec' not in st.session_state:
+        st.session_state['limit_rec'] = 10
+    if 'limit_desp' not in st.session_state:
+        st.session_state['limit_desp'] = 10
+
 init_state()
 
 # Cores do Design (Dinâmicas)
@@ -638,7 +643,7 @@ elif selected == "Receitas":
     
     total_r = df_r['valor'].sum()
 
-    st.markdown("##### Daily Revenue Trend")
+    st.markdown("##### Tendência diária de Receitas")
     st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     st.markdown(f"""
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
@@ -698,7 +703,7 @@ elif selected == "Receitas":
         if search_rec:
             df_r = df_r[df_r['descricao'].str.contains(search_rec, case=False)]
             
-        for idx, row in df_r.head(10).iterrows():
+        for idx, row in df_r.head(st.session_state['limit_rec']).iterrows():
             d_day = row['data'].strftime("%d")
             d_month = row['data'].strftime("%b").upper()
             val_fmt = f"+ ${row['valor']:,.2f}"
@@ -740,6 +745,11 @@ elif selected == "Receitas":
                                     st.rerun()
 
             st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
+
+        if len(df_r) > st.session_state['limit_rec']:
+            if st.button("+ Carregar mais transações", key="load_more_rec", type="tertiary"):
+                st.session_state['limit_rec'] += 10
+                st.rerun()
 
     else:
         st.write("No transactions.")
@@ -851,7 +861,7 @@ elif selected == "Despesas":
         if search_term:
             df_d = df_d[df_d['descricao'].str.contains(search_term, case=False)]
             
-        for idx, row in df_d.head(10).iterrows():
+        for idx, row in df_d.head(st.session_state['limit_desp']).iterrows():
             d_day = row['data'].strftime("%d")
             d_month = row['data'].strftime("%b").upper()
             val_fmt = f"- R$ {row['valor']:,.2f}"
@@ -892,7 +902,10 @@ elif selected == "Despesas":
 
             st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
 
-        st.markdown("""<div style="text-align: center; padding: 15px; color: #64748B; font-size: 0.85rem; cursor: pointer;">+ Carregar mais transações</div>""", unsafe_allow_html=True)
+        if len(df_d) > st.session_state['limit_desp']:
+            if st.button("+ Carregar mais transações", key="load_more_desp", type="tertiary"):
+                st.session_state['limit_desp'] += 10
+                st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
 

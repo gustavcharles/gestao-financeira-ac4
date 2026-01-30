@@ -16,7 +16,7 @@ O Streamlit Cloud lê o código diretamente do GitHub.
     git add .
     git commit -m "Upload inicial do App"
     git branch -M main
-    git remote add origin https://github.com/SEU_USUARIO/gestao-financeira-ac4.git
+    git remote add origin https://github.com/gustavcharles/gestao-financeira-ac4.git
     git push -u origin main
     ```
     *(Troque SEU_USUARIO pelo seu nome de usuário do GitHub)*.

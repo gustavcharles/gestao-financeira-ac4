@@ -302,7 +302,7 @@ def get_transactions():
             df[col] = None
 
     if not df.empty:
-        df['data'] = pd.to_datetime(df['data']).dt.date
+        df['data'] = pd.to_datetime(df['data'])
         df['valor'] = df['valor'].astype(float)
         return df.sort_values(by='data', ascending=False)
     return df

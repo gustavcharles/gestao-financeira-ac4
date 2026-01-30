@@ -355,7 +355,46 @@ def add_transaction(data):
             return True
         except Exception as e:
             st.error(f"Erro ao salvar: {e}")
+            db.collection(COLLECTION_NAME).add(data)
+            return True
+        except Exception as e:
+            st.error(f"Erro ao salvar: {e}")
             return False
+
+@st.dialog("✏️ Editar Transação")
+def edit_transaction_dialog(row, tipo_cat_key):
+    st.write(f"Editando: **{row['descricao']}**")
+    
+    col_cats = st.session_state['config_categorias'][tipo_cat_key]
+    
+    # Pre-fill
+    e_val = st.number_input("Valor", value=float(row['valor']), step=100.0)
+    e_desc = st.text_input("Descrição", value=row['descricao'])
+    
+    try:
+        idx = col_cats.index(row['categoria'])
+    except: idx = 0
+    e_cat = st.selectbox("Categoria", col_cats, index=idx)
+    
+    # Date handling
+    d_val = row['data']
+    if isinstance(d_val, str): d_val = datetime.strptime(d_val, "%Y-%m-%d").date()
+    elif isinstance(d_val, datetime): d_val = d_val.date()
+    
+    e_date = st.date_input("Data", value=d_val, format="DD/MM/YYYY")
+    
+    # Recalc ref
+    e_ref = get_shifted_reference_month(e_date, e_cat, row['tipo'])
+    st.caption(f"Nova Competência: **{e_ref}**")
+    
+    if st.button("💾 Salvar Alterações", type="primary", use_container_width=True):
+        upd = {
+            "valor": e_val, "descricao": e_desc, "categoria": e_cat,
+            "data": e_date, "mes_referencia": e_ref
+        }
+        if update_transaction(row['id'], upd):
+            st.session_state["toast_msg"] = "Transação atualizada com sucesso!"
+            st.rerun()
 
 def get_current_month_str():
     return get_month_from_date(date.today())
@@ -686,37 +725,14 @@ elif selected == "Receitas":
                 with c_row2:
                     c_edit, c_del = st.columns([1, 1], gap="small")
                     
-                    # Edit Popover
+                    # Edit Dialog Button
                     with c_edit:
-                         with st.popover("✏️", key=f"pop_edit_r_{row['id']}"):
-                                st.markdown("### Editar")
-                                new_val = st.number_input("Valor", value=float(row['valor']), step=100.0, key=f"edit_val_r_{row['id']}")
-                                new_desc = st.text_input("Descrição", value=row['descricao'], key=f"edit_desc_r_{row['id']}")
-                                new_cat = st.selectbox("Categoria", st.session_state['config_categorias']['receita'], index=st.session_state['config_categorias']['receita'].index(row['categoria']) if row['categoria'] in st.session_state['config_categorias']['receita'] else 0, key=f"edit_cat_r_{row['id']}")
-                                
-                                # Convert datetime/date safely
-                                date_val = row['data']
-                                if isinstance(date_val, str): date_val = datetime.strptime(date_val, "%Y-%m-%d").date()
-                                elif isinstance(date_val, datetime): date_val = date_val.date()
-                                
-                                new_date = st.date_input("Data", value=date_val, format="DD/MM/YYYY", key=f"edit_date_r_{row['id']}")
-                                
-                                # Auto-Recalc Ref Month
-                                new_ref = get_shifted_reference_month(new_date, new_cat, "Receita")
-                                st.caption(f"Nova Competência: **{new_ref}**")
-                                
-                                if st.button("Salvar", key=f"save_edit_r_{row['id']}", type="primary"):
-                                    upd_data = {
-                                        "valor": new_val, "descricao": new_desc, "categoria": new_cat,
-                                        "data": new_date, "mes_referencia": new_ref
-                                    }
-                                    if update_transaction(row['id'], upd_data):
-                                        st.session_state["toast_msg"] = "Transação atualizada!"
-                                        st.rerun()
+                         if st.button("✏️", key=f"btn_edit_r_{row['id']}"):
+                             edit_transaction_dialog(row, "receita")
 
-                    # Delete Popover
+                    # Delete Popover (No Key to fix crash)
                     with c_del:
-                        with st.popover("🗑️", key=f"pop_del_r_{row['id']}"):
+                        with st.popover("🗑️"):
                             st.write("Confirma?")
                             if st.button("Sim", key=f"del_rec_{row['id']}"):
                                 if delete_transaction(row['id']):
@@ -861,35 +877,13 @@ elif selected == "Despesas":
             with c_row2:
                 c_edit_d, c_del_d = st.columns([1, 1], gap="small")
                 # Edit Popover Despesa
+                # Edit Dialog Despesa
                 with c_edit_d:
-                     with st.popover("✏️", key=f"pop_edit_d_{row['id']}"):
-                            st.markdown("### Editar")
-                            new_val_d = st.number_input("Valor", value=float(row['valor']), step=10.0, key=f"edit_val_d_{row['id']}")
-                            new_desc_d = st.text_input("Descrição", value=row['descricao'], key=f"edit_desc_d_{row['id']}")
-                            new_cat_d = st.selectbox("Categoria", st.session_state['config_categorias']['despesa'], index=st.session_state['config_categorias']['despesa'].index(row['categoria']) if row['categoria'] in st.session_state['config_categorias']['despesa'] else 0, key=f"edit_cat_d_{row['id']}")
-                            
-                            # Safely handle dates
-                            date_val_d = row['data']
-                            if isinstance(date_val_d, str): date_val_d = datetime.strptime(date_val_d, "%Y-%m-%d").date()
-                            elif isinstance(date_val_d, datetime): date_val_d = date_val_d.date()
-                            
-                            new_date_d = st.date_input("Data", value=date_val_d, format="DD/MM/YYYY", key=f"edit_date_d_{row['id']}")
-                            
-                            # Auto-Recalc Ref Month
-                            new_ref_d = get_shifted_reference_month(new_date_d, new_cat_d, "Despesa")
-                            st.caption(f"Nova Competência: **{new_ref_d}**")
-                            
-                            if st.button("Salvar", key=f"save_edit_d_{row['id']}", type="primary"):
-                                upd_data_d = {
-                                    "valor": new_val_d, "descricao": new_desc_d, "categoria": new_cat_d,
-                                    "data": new_date_d, "mes_referencia": new_ref_d
-                                }
-                                if update_transaction(row['id'], upd_data_d):
-                                    st.session_state["toast_msg"] = "Despesa atualizada!"
-                                    st.rerun()
+                     if st.button("✏️", key=f"btn_edit_d_{row['id']}"):
+                         edit_transaction_dialog(row, "despesa")
 
                 with c_del_d:
-                    with st.popover("🗑️", key=f"pop_del_d_{row['id']}"):
+                    with st.popover("🗑️"):
                         st.write("Confirma?")
                         if st.button("Sim", key=f"del_desp_{row['id']}"):
                             if delete_transaction(row['id']):

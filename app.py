@@ -676,7 +676,7 @@ elif selected == "Receitas":
     st.markdown('</div>', unsafe_allow_html=True)
 
     # 2. Transactions List
-    with st.expander("Histórico de Transações", expanded=False):
+    with st.expander("📜 Histórico de Transações", expanded=False):
         c_search_r, c_filt_r = st.columns([4, 2])
         search_rec = c_search_r.text_input("Buscar", placeholder="Search by service...", label_visibility="collapsed", key="search_rec")
         
@@ -872,7 +872,7 @@ elif selected == "Despesas":
             st.markdown(card_category_row(cat, val, pct, color), unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    with st.expander("Histórico de Transações", expanded=False):
+    with st.expander("📜 Histórico de Transações", expanded=False):
         c_search, c_filter = st.columns([4, 2])
         search_term = c_search.text_input("Buscar", placeholder="Buscar fornecedor, valor...", label_visibility="collapsed")
         

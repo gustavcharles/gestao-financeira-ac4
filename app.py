@@ -278,7 +278,9 @@ def init_connection():
             cred = credentials.Certificate(cred_dict)
             firebase_admin.initialize_app(cred)
         return firestore.client()
-    except: return None
+    except Exception as e:
+        st.error(f"⚠️ Erro na conexão com Banco de Dados: {e}")
+        return None
 
 db = init_connection()
 COLLECTION_NAME = "transacoes"

@@ -333,8 +333,8 @@ def update_transaction(doc_id, data):
         return True
     else:
         try:
-             # Converter date para datetime para o Firestore
-            if isinstance(data['data'], date) and not isinstance(data['data'], datetime):
+             # Converter date para datetime para o Firestore (apenas se 'data' estiver no update)
+            if 'data' in data and isinstance(data['data'], date) and not isinstance(data['data'], datetime):
                 data['data'] = datetime.combine(data['data'], datetime.min.time())
                 
             db.collection(COLLECTION_NAME).document(doc_id).update(data)
@@ -678,9 +678,12 @@ elif selected == "Receitas":
     # 2. Transactions List
     st.markdown("##### Transações")
     
-    c_search_r, c_filt_r = st.columns([4, 1])
+    c_search_r, c_filt_r = st.columns([4, 2])
     search_rec = c_search_r.text_input("Buscar", placeholder="Search by service...", label_visibility="collapsed", key="search_rec")
-    c_filt_r.button("🌪️", key="filt_btn_rec")
+    
+    # Sort Control Receita
+    with c_filt_r:
+        sort_r = st.radio("Ord.", ["⬇️ Recentes", "⬆️ Antigas"], horizontal=True, label_visibility="collapsed", key="sort_rec")
     
     # Filter Logic
     if "rec_filter_cat" not in st.session_state: st.session_state["rec_filter_cat"] = "All"
@@ -709,6 +712,12 @@ elif selected == "Receitas":
         # 2. Apply Search
         if search_rec:
             df_r = df_r[df_r['descricao'].str.contains(search_rec, case=False)]
+        
+        # 3. Apply Sort
+        if sort_r == "⬆️ Antigas":
+            df_r = df_r.sort_values(by="data", ascending=True)
+        else:
+            df_r = df_r.sort_values(by="data", ascending=False)
             
         for idx, row in df_r.head(st.session_state['limit_rec']).iterrows():
             d_day = row['data'].strftime("%d")
@@ -859,14 +868,26 @@ elif selected == "Despesas":
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("##### Histórico de Transações")
-    c_search, c_filter = st.columns([4, 1])
+    c_search, c_filter = st.columns([4, 2])
     search_term = c_search.text_input("Buscar", placeholder="Buscar fornecedor, valor...", label_visibility="collapsed")
-    c_filter.button("🌪️") 
+    
+    # Sort Control Despesa
+    with c_filter:
+        sort_d = st.radio("Ord.", ["⬇️ Recentes", "⬆️ Antigas"], horizontal=True, label_visibility="collapsed", key="sort_desp") 
 
     st.markdown('<div class="custom-card" style="padding: 10px 20px;">', unsafe_allow_html=True)
     if not df_d.empty:
         if search_term:
             df_d = df_d[df_d['descricao'].str.contains(search_term, case=False)]
+            
+        if search_term:
+            df_d = df_d[df_d['descricao'].str.contains(search_term, case=False)]
+            
+        # Apply Sort
+        if sort_d == "⬆️ Antigas":
+            df_d = df_d.sort_values(by="data", ascending=True)
+        else:
+            df_d = df_d.sort_values(by="data", ascending=False)
             
         for idx, row in df_d.head(st.session_state['limit_desp']).iterrows():
             d_day = row['data'].strftime("%d")

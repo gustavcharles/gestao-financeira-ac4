@@ -1,20 +1,49 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 💰 Gestão Financeira AC-4
 
-# Run and deploy your AI Studio app
+Sistema web para controle financeiro inteligente, focado em gerenciamento de orçamentos e fluxo de caixa (Regime de Competência).
 
-This contains everything you need to run your app locally.
+🔗 **Acesse Online:** [https://gestao-financeira-ac4-y8nwm6hw39jxbvwdjytfkm.streamlit.app/](https://gestao-financeira-ac4-y8nwm6hw39jxbvwdjytfkm.streamlit.app/)
 
-View your app in AI Studio: https://ai.studio/apps/drive/101wYEnRor0g-UboYNcCk-0kSPJ6wPlzb
+## ✨ Funcionalidades
 
-## Run Locally
+*   **Dashboard Interativo:** Visão geral de saldo, receitas e despesas por competência.
+*   **Lançamentos Inteligentes:**
+    *   Formulário "Mobile First" rápido e fácil.
+    *   **Regra de Salário:** Aloca automaticamente o salário recebido no mês X para o orçamento do mês X+1.
+    *   **Regra AC-4:** Aloca automaticamente o serviço do mês X para o recebimento/orçamento do mês X+2.
+*   **Gestão de Despesas:** Controle detalhado com categorização e alertas visuais.
+*   **Integração Web:** Funciona como um app nativo no celular (PWA).
+*   **Banco de Dados na Nuvem:** Todos os dados são salvos com segurança no Google Firebase.
 
-**Prerequisites:**  Node.js
+## 🚀 Como rodar localmente
 
+1.  Clone o repositório:
+    ```bash
+    git clone https://github.com/gustavcharles/gestao-financeira-ac4.git
+    cd gestao-financeira-ac4
+    ```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+2.  Crie um ambiente virtual e instale as dependências:
+    ```bash
+    python -m venv .venv
+    .venv\Scripts\activate  # Windows
+    pip install -r requirements.txt
+    ```
+
+3.  Configure os Segredos:
+    *   Crie uma pasta `.streamlit`
+    *   Crie um arquivo `.streamlit/secrets.toml` com suas credenciais do Firebase.
+
+4.  Execute o app:
+    ```bash
+    streamlit run app.py
+    ```
+
+## 🛠️ Tecnologias
+*   Python 3.10+
+*   Streamlit
+*   Pandas & Plotly
+*   Google Firebase (Firestore)
+
+---
+*Desenvolvido para gestão financeira pessoal otimizada.*

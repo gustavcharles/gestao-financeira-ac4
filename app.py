@@ -18,6 +18,14 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# --- TOAST MANAGER (Mostra msgs após rerun) ---
+if "toast_msg" in st.session_state:
+    msg = st.session_state["toast_msg"]
+    icon = st.session_state.get("toast_icon", "✅")
+    st.toast(msg, icon=icon)
+    del st.session_state["toast_msg"]
+    if "toast_icon" in st.session_state: del st.session_state["toast_icon"]
+
 # --- UTILS E CONSTANTES ---
 MAPA_MESES = {
     "Janeiro": 1, "Fevereiro": 2, "Março": 3, "Abril": 4,
@@ -620,10 +628,11 @@ elif selected == "Receitas":
             with c_row2:
                 # Botão Excluir com Popover (Seguro)
                 with st.popover("🗑️"):
-                    st.write("Excluir item?")
+                    st.write("Confirma?")
                     if st.button("Sim", key=f"del_rec_{row['id']}"):
-                        delete_transaction(row['id'])
-                        st.rerun()
+                        if delete_transaction(row['id']):
+                            st.session_state["toast_msg"] = f"Receita de R$ {row['valor']:.2f} removida."
+                            st.rerun()
 
             st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
 
@@ -749,8 +758,9 @@ elif selected == "Despesas":
                 with st.popover("🗑️"):
                     st.write("Excluir?")
                     if st.button("Sim", key=f"del_desp_{row['id']}"):
-                        delete_transaction(row['id'])
-                        st.rerun()
+                        if delete_transaction(row['id']):
+                             st.session_state["toast_msg"] = f"Despesa de R$ {row['valor']:.2f} removida."
+                             st.rerun()
 
             st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
 
@@ -785,7 +795,8 @@ elif selected == "Novo +":
         }
         
         if add_transaction(new_data):
-            st.success(f"{tipo} adicionado com sucesso!")
+            # st.success... removido em favor do Toast persistente
+            st.session_state["toast_msg"] = f"{tipo} adicionado! (Ref: {new_data['mes_referencia']})"
             st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 

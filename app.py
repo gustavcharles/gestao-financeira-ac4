@@ -1012,7 +1012,7 @@ elif selected == "Config":
         if st.button("Adicionar Receita", key="add_rec"):
             if new_cat_rec and new_cat_rec not in st.session_state['config_categorias']['receita']:
                 st.session_state['config_categorias']['receita'].append(new_cat_rec)
-                st.success("Categoria adicionada!")
+                st.session_state["toast_msg"] = f"Categoria '{new_cat_rec}' adicionada!"
                 st.rerun()
                 
         cats_rec_del = st.multiselect("Remover (Receita)", st.session_state['config_categorias']['receita'], key="del_rec")
@@ -1020,7 +1020,7 @@ elif selected == "Config":
             for c in cats_rec_del:
                 if c in st.session_state['config_categorias']['receita']:
                     st.session_state['config_categorias']['receita'].remove(c)
-            st.success("Categorias removidas!")
+            st.session_state["toast_msg"] = "Categorias removidas com sucesso!"
             st.rerun()
 
     # Gerenciar Despesas
@@ -1029,7 +1029,7 @@ elif selected == "Config":
         if st.button("Adicionar Despesa", key="add_des"):
             if new_cat_des and new_cat_des not in st.session_state['config_categorias']['despesa']:
                 st.session_state['config_categorias']['despesa'].append(new_cat_des)
-                st.success("Categoria adicionada!")
+                st.session_state["toast_msg"] = f"Categoria '{new_cat_des}' adicionada!"
                 st.rerun()
 
         cats_des_del = st.multiselect("Remover (Despesa)", st.session_state['config_categorias']['despesa'], key="del_des")
@@ -1037,7 +1037,7 @@ elif selected == "Config":
             for c in cats_des_del:
                 if c in st.session_state['config_categorias']['despesa']:
                     st.session_state['config_categorias']['despesa'].remove(c)
-            st.success("Categorias removidas!")
+            st.session_state["toast_msg"] = "Categorias removidas com sucesso!"
             st.rerun()
             
     st.divider()

@@ -676,106 +676,105 @@ elif selected == "Receitas":
     st.markdown('</div>', unsafe_allow_html=True)
 
     # 2. Transactions List
-    st.markdown("##### Transações")
-    
-    c_search_r, c_filt_r = st.columns([4, 2])
-    search_rec = c_search_r.text_input("Buscar", placeholder="Search by service...", label_visibility="collapsed", key="search_rec")
-    
-    # Sort Control Receita
-    with c_filt_r:
-        sort_r = st.radio("Ord.", ["⬇️ Recentes", "⬆️ Antigas"], horizontal=True, label_visibility="collapsed", key="sort_rec")
-    
-    # Filter Logic
-    if "rec_filter_cat" not in st.session_state: st.session_state["rec_filter_cat"] = "All"
-    
-    k1, k2, k3, k4 = st.columns([1, 1, 1, 2])
-    
-    if k1.button("All", key="chip_all", use_container_width=True, type="primary" if st.session_state["rec_filter_cat"] == "All" else "secondary"):
-        st.session_state["rec_filter_cat"] = "All"
-        st.rerun()
+    with st.expander("Histórico de Transações", expanded=False):
+        c_search_r, c_filt_r = st.columns([4, 2])
+        search_rec = c_search_r.text_input("Buscar", placeholder="Search by service...", label_visibility="collapsed", key="search_rec")
         
-    if k2.button("Month", key="chip_m", use_container_width=True, type="primary" if st.session_state["rec_filter_cat"] == "Salário" else "secondary"):
-        st.session_state["rec_filter_cat"] = "Salário"
-        st.rerun()
+        # Sort Control Receita
+        with c_filt_r:
+            sort_r = st.radio("Ord.", ["⬇️ Recentes", "⬆️ Antigas"], horizontal=True, label_visibility="collapsed", key="sort_rec")
         
-    if k3.button("Serv.", key="chip_s", use_container_width=True, type="primary" if st.session_state["rec_filter_cat"] == "AC-4" else "secondary"):
-        st.session_state["rec_filter_cat"] = "AC-4"
-        st.rerun()
-
-    
-    st.markdown('<div class="custom-card" style="padding: 10px 20px;">', unsafe_allow_html=True)
-    if not df_r.empty:
-        # 1. Apply Chip Filter
-        if st.session_state["rec_filter_cat"] != "All":
-             df_r = df_r[df_r['categoria'] == st.session_state["rec_filter_cat"]]
-             
-        # 2. Apply Search
-        if search_rec:
-            df_r = df_r[df_r['descricao'].str.contains(search_rec, case=False)]
+        # Filter Logic
+        if "rec_filter_cat" not in st.session_state: st.session_state["rec_filter_cat"] = "All"
         
-        # 3. Apply Sort
-        if sort_r == "⬆️ Antigas":
-            df_r = df_r.sort_values(by="data", ascending=True)
-        else:
-            df_r = df_r.sort_values(by="data", ascending=False)
+        k1, k2, k3, k4 = st.columns([1, 1, 1, 2])
+        
+        if k1.button("All", key="chip_all", use_container_width=True, type="primary" if st.session_state["rec_filter_cat"] == "All" else "secondary"):
+            st.session_state["rec_filter_cat"] = "All"
+            st.rerun()
             
-        last_m_header = None
-        for idx, row in df_r.head(st.session_state['limit_rec']).iterrows():
-            current_m_header = get_month_from_date(row['data'])
-            if current_m_header != last_m_header:
-                st.markdown(f"<div style='background: #F8FAFC; padding: 5px 10px; border-radius: 5px; font-weight: 600; font-size: 0.8rem; color: #64748B; margin-top: 15px; margin-bottom: 5px;'>{current_m_header.upper()}</div>", unsafe_allow_html=True)
-                last_m_header = current_m_header
-
-            d_day = row['data'].strftime("%d")
-            d_month = row['data'].strftime("%b").upper()
-            val_fmt = f"+ ${row['valor']:,.2f}"
+        if k2.button("Month", key="chip_m", use_container_width=True, type="primary" if st.session_state["rec_filter_cat"] == "Salário" else "secondary"):
+            st.session_state["rec_filter_cat"] = "Salário"
+            st.rerun()
             
-            # Row Layout
-            c_row1, c_row2 = st.columns([5, 1])
-            with c_row1:
-                st.markdown(f"""
-                <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0;">
-                    <div style="background: #EFF6FF; color: {COLOR_PRIMARY}; width: 50px; height: 50px; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;">
-                         <span style="font-size: 0.65rem; color: #60A5FA;">{d_month}</span>
-                         <span style="font-size: 1.1rem; line-height: 1;">{d_day}</span>
-                    </div>
-                    <div>
-                        <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                             <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
-                             <span style="color: #9CA3AF; font-size: 0.75rem;">AC-4 Rec.</span>
+        if k3.button("Serv.", key="chip_s", use_container_width=True, type="primary" if st.session_state["rec_filter_cat"] == "AC-4" else "secondary"):
+            st.session_state["rec_filter_cat"] = "AC-4"
+            st.rerun()
+
+        
+        st.markdown('<div class="custom-card" style="padding: 10px 20px;">', unsafe_allow_html=True)
+        if not df_r.empty:
+            # 1. Apply Chip Filter
+            if st.session_state["rec_filter_cat"] != "All":
+                 df_r = df_r[df_r['categoria'] == st.session_state["rec_filter_cat"]]
+                 
+            # 2. Apply Search
+            if search_rec:
+                df_r = df_r[df_r['descricao'].str.contains(search_rec, case=False)]
+            
+            # 3. Apply Sort
+            if sort_r == "⬆️ Antigas":
+                df_r = df_r.sort_values(by="data", ascending=True)
+            else:
+                df_r = df_r.sort_values(by="data", ascending=False)
+                
+            last_m_header = None
+            for idx, row in df_r.head(st.session_state['limit_rec']).iterrows():
+                current_m_header = get_month_from_date(row['data'])
+                if current_m_header != last_m_header:
+                    st.markdown(f"<div style='background: #F8FAFC; padding: 5px 10px; border-radius: 5px; font-weight: 600; font-size: 0.8rem; color: #64748B; margin-top: 15px; margin-bottom: 5px;'>{current_m_header.upper()}</div>", unsafe_allow_html=True)
+                    last_m_header = current_m_header
+
+                d_day = row['data'].strftime("%d")
+                d_month = row['data'].strftime("%b").upper()
+                val_fmt = f"+ ${row['valor']:,.2f}"
+                
+                # Row Layout
+                c_row1, c_row2 = st.columns([5, 1])
+                with c_row1:
+                    st.markdown(f"""
+                    <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0;">
+                        <div style="background: #EFF6FF; color: {COLOR_PRIMARY}; width: 50px; height: 50px; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;">
+                             <span style="font-size: 0.65rem; color: #60A5FA;">{d_month}</span>
+                             <span style="font-size: 1.1rem; line-height: 1;">{d_day}</span>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                 <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
+                                 <span style="color: #9CA3AF; font-size: 0.75rem;">AC-4 Rec.</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                """, unsafe_allow_html=True)
-                # Ações (Edit + Delete)
-                with c_row2:
-                    c_edit, c_del = st.columns([1, 1], gap="small")
-                    
-                    # Edit Dialog Button
-                    with c_edit:
-                         if st.button("✏️", key=f"btn_edit_r_{row['id']}"):
-                             edit_transaction_dialog(row, "receita")
+                    """, unsafe_allow_html=True)
+                    # Ações (Edit + Delete)
+                    with c_row2:
+                        c_edit, c_del = st.columns([1, 1], gap="small")
+                        
+                        # Edit Dialog Button
+                        with c_edit:
+                             if st.button("✏️", key=f"btn_edit_r_{row['id']}"):
+                                 edit_transaction_dialog(row, "receita")
 
-                    # Delete Popover (No Key to fix crash)
-                    with c_del:
-                        with st.popover("🗑️"):
-                            st.write("Confirma?")
-                            if st.button("Sim", key=f"del_rec_{row['id']}"):
-                                if delete_transaction(row['id']):
-                                    st.session_state["toast_msg"] = f"Receita de R$ {row['valor']:.2f} removida."
-                                    st.rerun()
+                        # Delete Popover (No Key to fix crash)
+                        with c_del:
+                            with st.popover("🗑️"):
+                                st.write("Confirma?")
+                                if st.button("Sim", key=f"del_rec_{row['id']}"):
+                                    if delete_transaction(row['id']):
+                                        st.session_state["toast_msg"] = f"Receita de R$ {row['valor']:.2f} removida."
+                                        st.rerun()
 
-            st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
+                st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
 
-        if len(df_r) > st.session_state['limit_rec']:
-            if st.button("+ Carregar mais transações", key="load_more_rec", type="tertiary"):
-                st.session_state['limit_rec'] += 10
-                st.rerun()
+            if len(df_r) > st.session_state['limit_rec']:
+                if st.button("+ Carregar mais transações", key="load_more_rec", type="tertiary"):
+                    st.session_state['limit_rec'] += 10
+                    st.rerun()
 
-    else:
-        st.write("No transactions.")
-    st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.write("No transactions.")
+        st.markdown('</div>', unsafe_allow_html=True)
     
     # Floating button removed
 
@@ -873,89 +872,89 @@ elif selected == "Despesas":
             st.markdown(card_category_row(cat, val, pct, color), unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("##### Histórico de Transações")
-    c_search, c_filter = st.columns([4, 2])
-    search_term = c_search.text_input("Buscar", placeholder="Buscar fornecedor, valor...", label_visibility="collapsed")
-    
-    # Sort Control Despesa
-    with c_filter:
-        sort_d = st.radio("Ord.", ["⬇️ Recentes", "⬆️ Antigas"], horizontal=True, label_visibility="collapsed", key="sort_desp") 
+    with st.expander("Histórico de Transações", expanded=False):
+        c_search, c_filter = st.columns([4, 2])
+        search_term = c_search.text_input("Buscar", placeholder="Buscar fornecedor, valor...", label_visibility="collapsed")
+        
+        # Sort Control Despesa
+        with c_filter:
+            sort_d = st.radio("Ord.", ["⬇️ Recentes", "⬆️ Antigas"], horizontal=True, label_visibility="collapsed", key="sort_desp") 
 
-    st.markdown('<div class="custom-card" style="padding: 10px 20px;">', unsafe_allow_html=True)
-    if not df_d.empty:
-        if search_term:
-            df_d = df_d[df_d['descricao'].str.contains(search_term, case=False)]
-            
-        if search_term:
-            df_d = df_d[df_d['descricao'].str.contains(search_term, case=False)]
-            
-        # Apply Sort
-        if sort_d == "⬆️ Antigas":
-            df_d = df_d.sort_values(by="data", ascending=True)
-        else:
-            df_d = df_d.sort_values(by="data", ascending=False)
-            
-        last_m_header_d = None
-        for idx, row in df_d.head(st.session_state['limit_desp']).iterrows():
-            current_m_header_d = get_month_from_date(row['data'])
-            if current_m_header_d != last_m_header_d:
-                st.markdown(f"<div style='background: #F8FAFC; padding: 5px 10px; border-radius: 5px; font-weight: 600; font-size: 0.8rem; color: #64748B; margin-top: 15px; margin-bottom: 5px;'>{current_m_header_d.upper()}</div>", unsafe_allow_html=True)
-                last_m_header_d = current_m_header_d
+        st.markdown('<div class="custom-card" style="padding: 10px 20px;">', unsafe_allow_html=True)
+        if not df_d.empty:
+            if search_term:
+                df_d = df_d[df_d['descricao'].str.contains(search_term, case=False)]
+                
+            if search_term:
+                df_d = df_d[df_d['descricao'].str.contains(search_term, case=False)]
+                
+            # Apply Sort
+            if sort_d == "⬆️ Antigas":
+                df_d = df_d.sort_values(by="data", ascending=True)
+            else:
+                df_d = df_d.sort_values(by="data", ascending=False)
+                
+            last_m_header_d = None
+            for idx, row in df_d.head(st.session_state['limit_desp']).iterrows():
+                current_m_header_d = get_month_from_date(row['data'])
+                if current_m_header_d != last_m_header_d:
+                    st.markdown(f"<div style='background: #F8FAFC; padding: 5px 10px; border-radius: 5px; font-weight: 600; font-size: 0.8rem; color: #64748B; margin-top: 15px; margin-bottom: 5px;'>{current_m_header_d.upper()}</div>", unsafe_allow_html=True)
+                    last_m_header_d = current_m_header_d
 
-            d_day = row['data'].strftime("%d")
-            d_month = row['data'].strftime("%b").upper()
-            val_fmt = f"- R$ {row['valor']:,.2f}"
-            
-            # Layout Row
-            c_row1, c_row2 = st.columns([5, 1])
-            with c_row1:
-                st.markdown(f"""
-                <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0;">
-                    <div style="background: #FFF1F2; color: {COLOR_DANGER}; width: 50px; height: 50px; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;">
-                            <span style="font-size: 0.65rem; color: #FDA4AF;">{d_month}</span>
-                            <span style="font-size: 1.1rem; line-height: 1;">{d_day}</span>
-                    </div>
-                    <div>
-                        <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                                <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
-                                <span style="background: {'#DEF7EC' if row.get('status')=='Pago' else '#FFFBEB'}; color: {'#03543F' if row.get('status')=='Pago' else '#92400E'}; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row.get('status','Pendente')}</span>
-                                <span style="color: {COLOR_DANGER}; font-size: 0.85rem; font-weight: 700;">{val_fmt}</span>
+                d_day = row['data'].strftime("%d")
+                d_month = row['data'].strftime("%b").upper()
+                val_fmt = f"- R$ {row['valor']:,.2f}"
+                
+                # Layout Row
+                c_row1, c_row2 = st.columns([5, 1])
+                with c_row1:
+                    st.markdown(f"""
+                    <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0;">
+                        <div style="background: #FFF1F2; color: {COLOR_DANGER}; width: 50px; height: 50px; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;">
+                                <span style="font-size: 0.65rem; color: #FDA4AF;">{d_month}</span>
+                                <span style="font-size: 1.1rem; line-height: 1;">{d_day}</span>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
+                                    <span style="background: {'#DEF7EC' if row.get('status')=='Pago' else '#FFFBEB'}; color: {'#03543F' if row.get('status')=='Pago' else '#92400E'}; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row.get('status','Pendente')}</span>
+                                    <span style="color: {COLOR_DANGER}; font-size: 0.85rem; font-weight: 700;">{val_fmt}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                """, unsafe_allow_html=True)
-            with c_row2:
-                c_check, c_edit_d, c_del_d = st.columns([1, 1, 1], gap="small")
-                
-                # Despesa Actions
-                with c_check:
-                    if row.get('status') != 'Pago':
-                         if st.button("✅", key=f"pay_{row['id']}", help="Marcar como Pago"):
-                             if update_transaction(row['id'], {"status": "Pago"}):
-                                 st.session_state["toast_msg"] = "Conta paga! 💸"
-                                 st.rerun()
+                    """, unsafe_allow_html=True)
+                with c_row2:
+                    c_check, c_edit_d, c_del_d = st.columns([1, 1, 1], gap="small")
+                    
+                    # Despesa Actions
+                    with c_check:
+                        if row.get('status') != 'Pago':
+                             if st.button("✅", key=f"pay_{row['id']}", help="Marcar como Pago"):
+                                 if update_transaction(row['id'], {"status": "Pago"}):
+                                     st.session_state["toast_msg"] = "Conta paga! 💸"
+                                     st.rerun()
 
-                # Edit Dialog Despesa
-                with c_edit_d:
-                     if st.button("✏️", key=f"btn_edit_d_{row['id']}"):
-                         edit_transaction_dialog(row, "despesa")
+                    # Edit Dialog Despesa
+                    with c_edit_d:
+                         if st.button("✏️", key=f"btn_edit_d_{row['id']}"):
+                             edit_transaction_dialog(row, "despesa")
 
-                with c_del_d:
-                    with st.popover("🗑️"):
-                        st.write("Confirma?")
-                        if st.button("Sim", key=f"del_desp_{row['id']}"):
-                            if delete_transaction(row['id']):
-                                st.session_state["toast_msg"] = f"Despesa de R$ {row['valor']:.2f} removida."
-                                st.rerun()
+                    with c_del_d:
+                        with st.popover("🗑️"):
+                            st.write("Confirma?")
+                            if st.button("Sim", key=f"del_desp_{row['id']}"):
+                                if delete_transaction(row['id']):
+                                    st.session_state["toast_msg"] = f"Despesa de R$ {row['valor']:.2f} removida."
+                                    st.rerun()
 
-            st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
+                st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
 
-        if len(df_d) > st.session_state['limit_desp']:
-            if st.button("+ Carregar mais transações", key="load_more_desp", type="tertiary"):
-                st.session_state['limit_desp'] += 10
-                st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+            if len(df_d) > st.session_state['limit_desp']:
+                if st.button("+ Carregar mais transações", key="load_more_desp", type="tertiary"):
+                    st.session_state['limit_desp'] += 10
+                    st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 # --- ABA 4: NOVO ---

@@ -392,10 +392,17 @@ def edit_transaction_dialog(row, tipo_cat_key):
     e_ref = get_shifted_reference_month(e_date, e_cat, row['tipo'])
     st.caption(f"Nova Competência: **{e_ref}**")
     
+    # Status handling
+    status_opts = ["Pendente", "Pago"] if row['tipo'] == "Despesa" else ["Recebido", "Pendente"]
+    try:
+        s_idx = status_opts.index(row.get('status', 'Pendente'))
+    except: s_idx = 0
+    e_status = st.selectbox("Status", status_opts, index=s_idx)
+    
     if st.button("💾 Salvar Alterações", type="primary", use_container_width=True):
         upd = {
             "valor": e_val, "descricao": e_desc, "categoria": e_cat,
-            "data": e_date, "mes_referencia": e_ref
+            "data": e_date, "mes_referencia": e_ref, "status": e_status
         }
         if update_transaction(row['id'], upd):
             st.session_state["toast_msg"] = "Transação atualizada com sucesso!"
@@ -879,14 +886,23 @@ elif selected == "Despesas":
                         <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
                         <div style="display: flex; align-items: center; gap: 8px;">
                                 <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
+                                <span style="background: {'#DEF7EC' if row.get('status')=='Pago' else '#FFFBEB'}; color: {'#03543F' if row.get('status')=='Pago' else '#92400E'}; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row.get('status','Pendente')}</span>
                                 <span style="color: {COLOR_DANGER}; font-size: 0.85rem; font-weight: 700;">{val_fmt}</span>
                         </div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
             with c_row2:
-                c_edit_d, c_del_d = st.columns([1, 1], gap="small")
-                # Edit Popover Despesa
+                c_check, c_edit_d, c_del_d = st.columns([1, 1, 1], gap="small")
+                
+                # Despesa Actions
+                with c_check:
+                    if row.get('status') != 'Pago':
+                         if st.button("✅", key=f"pay_{row['id']}", help="Marcar como Pago"):
+                             if update_transaction(row['id'], {"status": "Pago"}):
+                                 st.session_state["toast_msg"] = "Conta paga! 💸"
+                                 st.rerun()
+
                 # Edit Dialog Despesa
                 with c_edit_d:
                      if st.button("✏️", key=f"btn_edit_d_{row['id']}"):

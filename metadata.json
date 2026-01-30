@@ -1,0 +1,5 @@
+{
+  "name": "Gestão Financeira AC-4",
+  "description": "Personal financial management app with Firebase backend, Streamlit frontend, and military-style AC-4 context.",
+  "requestFramePermissions": []
+}

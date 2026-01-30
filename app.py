@@ -317,8 +317,27 @@ def delete_transaction(doc_id):
             return True
         except Exception as e:
             st.error(f"Erro ao excluir: {e}")
-            st.error(f"Erro ao excluir: {e}")
             return False
+
+def update_transaction(doc_id, data):
+    if db is None:
+        for d in st.session_state['mock_data']:
+            if d['id'] == doc_id:
+                d.update(data)
+                break
+        return True
+    else:
+        try:
+             # Converter date para datetime para o Firestore
+            if isinstance(data['data'], date) and not isinstance(data['data'], datetime):
+                data['data'] = datetime.combine(data['data'], datetime.min.time())
+                
+            db.collection(COLLECTION_NAME).document(doc_id).update(data)
+            return True
+        except Exception as e:
+            st.error(f"Erro ao atualizar: {e}")
+            return False
+
 
 def add_transaction(data):
     if db is None:
@@ -663,14 +682,46 @@ elif selected == "Receitas":
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
-            with c_row2:
-                # Botão Excluir com Popover (Seguro)
-                with st.popover("🗑️"):
-                    st.write("Confirma?")
-                    if st.button("Sim", key=f"del_rec_{row['id']}"):
-                        if delete_transaction(row['id']):
-                            st.session_state["toast_msg"] = f"Receita de R$ {row['valor']:.2f} removida."
-                            st.rerun()
+                # Ações (Edit + Delete)
+                with c_row2:
+                    c_edit, c_del = st.columns([1, 1], gap="small")
+                    
+                    # Edit Popover
+                    with c_edit:
+                         with st.popover("✏️", use_container_width=True):
+                                st.markdown("### Editar")
+                                new_val = st.number_input("Valor", value=float(row['valor']), step=100.0, key=f"edit_val_r_{row['id']}")
+                                new_desc = st.text_input("Descrição", value=row['descricao'], key=f"edit_desc_r_{row['id']}")
+                                new_cat = st.selectbox("Categoria", st.session_state['config_categorias']['receita'], index=st.session_state['config_categorias']['receita'].index(row['categoria']) if row['categoria'] in st.session_state['config_categorias']['receita'] else 0, key=f"edit_cat_r_{row['id']}")
+                                
+                                # Convert datetime/date safely
+                                date_val = row['data']
+                                if isinstance(date_val, str): date_val = datetime.strptime(date_val, "%Y-%m-%d").date()
+                                elif isinstance(date_val, datetime): date_val = date_val.date()
+                                
+                                new_date = st.date_input("Data", value=date_val, format="DD/MM/YYYY", key=f"edit_date_r_{row['id']}")
+                                
+                                # Auto-Recalc Ref Month
+                                new_ref = get_shifted_reference_month(new_date, new_cat, "Receita")
+                                st.caption(f"Nova Competência: **{new_ref}**")
+                                
+                                if st.button("Salvar", key=f"save_edit_r_{row['id']}", type="primary"):
+                                    upd_data = {
+                                        "valor": new_val, "descricao": new_desc, "categoria": new_cat,
+                                        "data": new_date, "mes_referencia": new_ref
+                                    }
+                                    if update_transaction(row['id'], upd_data):
+                                        st.session_state["toast_msg"] = "Transação atualizada!"
+                                        st.rerun()
+
+                    # Delete Popover
+                    with c_del:
+                        with st.popover("🗑️", use_container_width=True):
+                            st.write("Confirma?")
+                            if st.button("Sim", key=f"del_rec_{row['id']}"):
+                                if delete_transaction(row['id']):
+                                    st.session_state["toast_msg"] = f"Receita de R$ {row['valor']:.2f} removida."
+                                    st.rerun()
 
             st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
 
@@ -789,7 +840,7 @@ elif selected == "Despesas":
             d_month = row['data'].strftime("%b").upper()
             val_fmt = f"- R$ {row['valor']:,.2f}"
             
-            # Use responsive Card Layout (Same as Receitas)
+            # Layout Row
             c_row1, c_row2 = st.columns([5, 1])
             with c_row1:
                 st.markdown(f"""
@@ -808,12 +859,42 @@ elif selected == "Despesas":
                 </div>
                 """, unsafe_allow_html=True)
             with c_row2:
-                with st.popover("🗑️"):
-                    st.write("Excluir?")
-                    if st.button("Sim", key=f"del_desp_{row['id']}"):
-                        if delete_transaction(row['id']):
-                             st.session_state["toast_msg"] = f"Despesa de R$ {row['valor']:.2f} removida."
-                             st.rerun()
+                c_edit_d, c_del_d = st.columns([1, 1], gap="small")
+                # Edit Popover Despesa
+                with c_edit_d:
+                     with st.popover("✏️", use_container_width=True):
+                            st.markdown("### Editar")
+                            new_val_d = st.number_input("Valor", value=float(row['valor']), step=10.0, key=f"edit_val_d_{row['id']}")
+                            new_desc_d = st.text_input("Descrição", value=row['descricao'], key=f"edit_desc_d_{row['id']}")
+                            new_cat_d = st.selectbox("Categoria", st.session_state['config_categorias']['despesa'], index=st.session_state['config_categorias']['despesa'].index(row['categoria']) if row['categoria'] in st.session_state['config_categorias']['despesa'] else 0, key=f"edit_cat_d_{row['id']}")
+                            
+                            # Safely handle dates
+                            date_val_d = row['data']
+                            if isinstance(date_val_d, str): date_val_d = datetime.strptime(date_val_d, "%Y-%m-%d").date()
+                            elif isinstance(date_val_d, datetime): date_val_d = date_val_d.date()
+                            
+                            new_date_d = st.date_input("Data", value=date_val_d, format="DD/MM/YYYY", key=f"edit_date_d_{row['id']}")
+                            
+                            # Auto-Recalc Ref Month
+                            new_ref_d = get_shifted_reference_month(new_date_d, new_cat_d, "Despesa")
+                            st.caption(f"Nova Competência: **{new_ref_d}**")
+                            
+                            if st.button("Salvar", key=f"save_edit_d_{row['id']}", type="primary"):
+                                upd_data_d = {
+                                    "valor": new_val_d, "descricao": new_desc_d, "categoria": new_cat_d,
+                                    "data": new_date_d, "mes_referencia": new_ref_d
+                                }
+                                if update_transaction(row['id'], upd_data_d):
+                                    st.session_state["toast_msg"] = "Despesa atualizada!"
+                                    st.rerun()
+
+                with c_del_d:
+                    with st.popover("🗑️", use_container_width=True):
+                        st.write("Confirma?")
+                        if st.button("Sim", key=f"del_desp_{row['id']}"):
+                            if delete_transaction(row['id']):
+                                st.session_state["toast_msg"] = f"Despesa de R$ {row['valor']:.2f} removida."
+                                st.rerun()
 
             st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
 

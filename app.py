@@ -606,19 +606,37 @@ elif selected == "Receitas":
     st.markdown('</div>', unsafe_allow_html=True)
 
     # 2. Transactions List
-    st.markdown("##### Transactions")
+    st.markdown("##### Transações")
     
     c_search_r, c_filt_r = st.columns([4, 1])
     search_rec = c_search_r.text_input("Buscar", placeholder="Search by service...", label_visibility="collapsed", key="search_rec")
     c_filt_r.button("🌪️", key="filt_btn_rec")
     
+    # Filter Logic
+    if "rec_filter_cat" not in st.session_state: st.session_state["rec_filter_cat"] = "All"
+    
     k1, k2, k3, k4 = st.columns([1, 1, 1, 2])
-    k1.button("All", key="chip_all", use_container_width=True, type="primary")
-    k2.button("Month", key="chip_m", use_container_width=True)
-    k3.button("Serv.", key="chip_s", use_container_width=True)
+    
+    if k1.button("All", key="chip_all", use_container_width=True, type="primary" if st.session_state["rec_filter_cat"] == "All" else "secondary"):
+        st.session_state["rec_filter_cat"] = "All"
+        st.rerun()
+        
+    if k2.button("Month", key="chip_m", use_container_width=True, type="primary" if st.session_state["rec_filter_cat"] == "Salário" else "secondary"):
+        st.session_state["rec_filter_cat"] = "Salário"
+        st.rerun()
+        
+    if k3.button("Serv.", key="chip_s", use_container_width=True, type="primary" if st.session_state["rec_filter_cat"] == "AC-4" else "secondary"):
+        st.session_state["rec_filter_cat"] = "AC-4"
+        st.rerun()
+
     
     st.markdown('<div class="custom-card" style="padding: 10px 20px;">', unsafe_allow_html=True)
     if not df_r.empty:
+        # 1. Apply Chip Filter
+        if st.session_state["rec_filter_cat"] != "All":
+             df_r = df_r[df_r['categoria'] == st.session_state["rec_filter_cat"]]
+             
+        # 2. Apply Search
         if search_rec:
             df_r = df_r[df_r['descricao'].str.contains(search_rec, case=False)]
             

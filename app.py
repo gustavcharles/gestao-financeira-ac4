@@ -111,30 +111,29 @@ def auth_screen():
         }
         
         /* Mobile Layout Fixes - Strong Override */
-        /* Mobile Layout Fixes - Precision Targeting */
+        /* Mobile Layout Fixes - Advanced Targeting */
         @media only screen and (max-width: 900px) {
-            /* Target ONLY the blocks preceded by our marker class */
-            .mobile-row-fix + [data-testid="stHorizontalBlock"], 
-            .mobile-row-fix + div + [data-testid="stHorizontalBlock"] { /* Sometimes there's an extra div wrapper */
+            
+            /* Target the wrapper of the marker, then select the immediate next wrapper which contains the columns */
+            div[data-testid="element-container"]:has(.mobile-row-fix) + div[data-testid="element-container"] [data-testid="stHorizontalBlock"],
+            div[data-testid="stMarkdownContainer"]:has(.mobile-row-fix) + div[data-testid="stHorizontalBlock"] {
                 flex-direction: row !important;
                 flex-wrap: nowrap !important;
                 width: 100% !important;
+                gap: 4px !important;
             }
 
-            .mobile-row-fix + [data-testid="stHorizontalBlock"] [data-testid="column"],
-            .mobile-row-fix + div + [data-testid="stHorizontalBlock"] [data-testid="column"] {
+            div[data-testid="element-container"]:has(.mobile-row-fix) + div[data-testid="element-container"] [data-testid="column"],
+            div[data-testid="stMarkdownContainer"]:has(.mobile-row-fix) + div[data-testid="stHorizontalBlock"] [data-testid="column"] {
                 min-width: 0 !important;
                 width: auto !important;
                 flex: 1 1 auto !important;
                 padding: 0 1px !important;
             }
             
-            /* Compact Buttons inside these rows */
-            .mobile-row-fix + [data-testid="stHorizontalBlock"] button,
-            .mobile-row-fix + div + [data-testid="stHorizontalBlock"] button {
-                 padding: 0px 4px !important;
-                 min-height: 30px !important;
-                 height: 30px !important;
+            /* Button Sizing */
+            button {
+                padding: 0.2rem 0.4rem !important;
             }
         }
         </style>

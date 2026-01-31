@@ -596,9 +596,11 @@ if selected == "Dashboard":
         fig = px.area(daily, x='data', y='valor', title=None)
         fig.update_layout(
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-            xaxis=dict(showgrid=False, tickformat="%d/%m"), yaxis=dict(showgrid=True, gridcolor='#F1F5F9'),
-            margin=dict(l=0, r=0, t=0, b=0), height=200, showlegend=False,
-            font=dict(color=COLOR_TEXT)
+            xaxis=dict(showgrid=False, tickformat="%d/%m", fixedrange=True), 
+            yaxis=dict(showgrid=True, gridcolor='#F1F5F9', fixedrange=True),
+            margin=dict(l=15, r=15, t=10, b=20), height=200, showlegend=False,
+            font=dict(color=COLOR_TEXT, size=11),
+            autosize=True
         )
         fig.update_traces(line_color=COLOR_PRIMARY, fillcolor="rgba(37, 99, 235, 0.1)")
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
@@ -666,10 +668,11 @@ elif selected == "Receitas":
         fig_r = px.line(daily_r, x='data', y='valor', line_shape='spline')
         fig_r.update_layout(
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-            xaxis=dict(showgrid=False, tickformat="%d %b"), 
-            yaxis=dict(showgrid=False, showticklabels=False),
-            margin=dict(l=0, r=0, t=10, b=10), height=200,
-            font=dict(color=COLOR_TEXT)
+            xaxis=dict(showgrid=False, tickformat="%d %b", fixedrange=True), 
+            yaxis=dict(showgrid=False, showticklabels=True, fixedrange=True),
+            margin=dict(l=35, r=10, t=10, b=20), height=200,
+            font=dict(color=COLOR_TEXT, size=11),
+            autosize=True
         )
         fig_r.update_traces(line_color=COLOR_PRIMARY, line_width=3) 
         st.plotly_chart(fig_r, use_container_width=True, config={'displayModeBar': False})

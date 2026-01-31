@@ -18,28 +18,93 @@ import os
 import base64
 
 def set_custom_icon(icon_path):
-    """Force override Streamlit icon with custom HTML injection"""
+    """Force override Streamlit icon and PWA Manifest with custom HTML injection"""
     if not os.path.exists(icon_path): return
     
+    # 1. Encode Image
     with open(icon_path, "rb") as f:
         data = f.read()
         encoded = base64.b64encode(data).decode()
-        
-    icon_url = f"data:image/png;base64,{encoded}"
     
+    icon_b64 = f"data:image/png;base64,{encoded}"
+    
+    # 2. Design Custom Manifest
+    manifest = {
+        "name": "Gestão AC-4",
+        "short_name": "Gestão AC-4",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#FFFFFF",
+        "theme_color": "#2563EB",
+        "icons": [
+            {
+                "src": icon_b64,
+                "sizes": "192x192",
+                "type": "image/png"
+            },
+            {
+                "src": icon_b64,
+                "sizes": "512x512",
+                "type": "image/png"
+            }
+        ]
+    }
+    manifest_json = json.dumps(manifest)
+    manifest_b64 = base64.b64encode(manifest_json.encode()).decode()
+    manifest_url = f"data:application/json;base64,{manifest_b64}"
+
+    # 3. Inject Aggressive JS & CSS
     st.markdown(
         f"""
-        <style>
-            /* Override Streamlit Icon in some contexts */
-        </style>
         <script>
-            var link = document.querySelector("link[rel~='icon']");
-            if (!link) {{
-                link = document.createElement('link');
-                link.rel = 'icon';
-                document.getElementsByTagName('head')[0].appendChild(link);
-            }}
-            link.href = '{icon_url}';
+            (function() {{
+                const iconUrl = '{icon_b64}';
+                const manifestUrl = '{manifest_url}';
+                
+                function updateFavicon() {{
+                    const head = document.getElementsByTagName('head')[0];
+                    
+                    // 1. Remove existing favicons
+                    const links = head.querySelectorAll("link[rel*='icon']");
+                    links.forEach(l => l.remove());
+                    
+                    // 2. Create new favicon
+                    const newLink = document.createElement('link');
+                    newLink.rel = 'icon';
+                    newLink.href = iconUrl;
+                    head.appendChild(newLink);
+                    
+                    // 3. Force Manifest (PWA)
+                    const existingManifest = head.querySelector("link[rel='manifest']");
+                    if (existingManifest) existingManifest.remove();
+                    
+                    const manifestLink = document.createElement('link');
+                    manifestLink.rel = 'manifest';
+                    manifestLink.href = manifestUrl;
+                    head.appendChild(manifestLink);
+                }}
+                
+                // Run immediately
+                updateFavicon();
+                
+                // Watch for changes (Streamlit likes to re-inject)
+                const observer = new MutationObserver((mutations) => {{
+                    mutations.forEach((mutation) => {{
+                        if (mutation.addedNodes.length > 0) {{
+                            // Check if a bad favicon was added
+                            let badFavicon = false;
+                            mutation.addedNodes.forEach((node) => {{
+                                if (node.nodeName === 'LINK' && node.rel.includes('icon') && node.href !== iconUrl) {{
+                                    badFavicon = true;
+                                }}
+                            }});
+                            if (badFavicon) updateFavicon();
+                        }}
+                    }});
+                }});
+                
+                observer.observe(document.getElementsByTagName('head')[0], {{ childList: true, subtree: true }});
+            }})();
         </script>
         """,
         unsafe_allow_html=True

@@ -596,8 +596,8 @@ if selected == "Dashboard":
         fig = px.area(daily, x='data', y='valor', title=None)
         fig.update_layout(
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-            xaxis=dict(showgrid=False, tickformat="%d/%m", fixedrange=True, title=None), 
-            yaxis=dict(showgrid=True, gridcolor='#E2E8F0', fixedrange=True, title=None, tickprefix="R$ "),
+            xaxis=dict(showgrid=False, tickformat="%d/%m", fixedrange=True, title=None, tickfont=dict(color=COLOR_TEXT)), 
+            yaxis=dict(showgrid=True, gridcolor='#CBD5E1', fixedrange=True, title=None, tickprefix="R$ ", tickfont=dict(color=COLOR_TEXT)),
             margin=dict(l=10, r=10, t=30, b=10), height=250, 
             showlegend=False, # Single series, title is enough
             font=dict(color=COLOR_TEXT, size=12),
@@ -674,8 +674,8 @@ elif selected == "Receitas":
         fig_r = px.line(daily_r, x='data', y='valor', line_shape='spline')
         fig_r.update_layout(
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-            xaxis=dict(showgrid=False, tickformat="%d %b", fixedrange=True, title=None), 
-            yaxis=dict(showgrid=True, gridcolor='#E2E8F0', showticklabels=True, fixedrange=True, title=None),
+            xaxis=dict(showgrid=False, tickformat="%d %b", fixedrange=True, title=None, tickfont=dict(color=COLOR_TEXT)), 
+            yaxis=dict(showgrid=True, gridcolor='#CBD5E1', showticklabels=True, fixedrange=True, title=None, tickfont=dict(color=COLOR_TEXT)),
             margin=dict(l=10, r=10, t=10, b=10), height=220,
             font=dict(color=COLOR_TEXT, size=12),
             autosize=True,

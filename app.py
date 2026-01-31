@@ -1407,17 +1407,21 @@ elif selected == "Receitas":
                 c_row1, c_row2 = st.columns([5, 1])
                 with c_row1:
                     st.markdown(f"""
-                    <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0;">
-                        <div style="background: #EFF6FF; color: {COLOR_PRIMARY}; width: 50px; height: 50px; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;">
-                             <span style="font-size: 0.65rem; color: #60A5FA;">{d_month}</span>
-                             <span style="font-size: 1.1rem; line-height: 1;">{d_day}</span>
-                        </div>
-                        <div>
-                            <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                 <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
-                                 <span style="color: #9CA3AF; font-size: 0.75rem;">AC-4 Rec.</span>
+                    <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0; justify-content: space-between; width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div style="background: #EFF6FF; color: {COLOR_PRIMARY}; width: 50px; height: 50px; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;">
+                                 <span style="font-size: 0.65rem; color: #60A5FA;">{d_month}</span>
+                                 <span style="font-size: 1.1rem; line-height: 1;">{d_day}</span>
                             </div>
+                            <div>
+                                <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                     <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="font-weight: 700; color: {COLOR_SUCCESS}; font-size: 1rem;">
+                            {val_fmt}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)

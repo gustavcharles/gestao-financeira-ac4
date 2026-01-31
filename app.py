@@ -228,7 +228,7 @@ st.markdown(f"""
     .stButton button {{
         color: {COLOR_TEXT} !important;
         border-color: {COLOR_BORDER} !important;
-        background-color: transparent !important;
+        background-color: {COLOR_CARD_BG} !important;
     }}
     
     .stButton button p, .stButton button span, .stDownloadButton button p, .stButton button div {{

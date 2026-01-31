@@ -454,7 +454,12 @@ def edit_transaction_dialog(row, tipo_cat_key):
 
     # Botão Duplicar
     if st.button("📑 Duplicar Transação", use_container_width=True):
-        new_data = row.copy()
+        # Converter Pandas Series para dict puro para evitar erro "The truth value of a Series is ambiguous"
+        if isinstance(row, pd.Series):
+            new_data = row.to_dict().copy()
+        else:
+            new_data = row.copy()
+            
         new_data['id'] = str(uuid.uuid4())
         new_data['descricao'] = f"{row['descricao']} (Cópia)"
         new_data['status'] = "Pendente"

@@ -569,11 +569,24 @@ def get_transactions():
         if col not in df.columns:
             df[col] = None
 
-    if not df.empty:
-        df['data'] = pd.to_datetime(df['data'])
-        df['valor'] = df['valor'].astype(float)
-        return df.sort_values(by='data', ascending=False)
-    return df
+    try:
+        if not df.empty:
+            if 'data' in df.columns:
+                df['data'] = pd.to_datetime(df['data']).dt.date
+            
+            # Ensure 'valor' is numeric to prevent sum issues
+            if 'valor' in df.columns:
+                 df['valor'] = pd.to_numeric(df['valor'], errors='coerce').fillna(0.0)
+
+            # Normalization
+            if 'mes_referencia' in df.columns:
+                df['mes_referencia'] = df['mes_referencia'].astype(str).str.strip()
+                
+            return df.sort_values(by='data', ascending=False)
+        return df
+    except Exception as e:
+        # Fallback empty structure
+        return pd.DataFrame(columns=["id", "data", "mes_referencia", "tipo", "categoria", "descricao", "valor", "status", "recorrente"])
 
 def delete_transaction(doc_id):
     if db is None:
@@ -1383,6 +1396,13 @@ elif selected == "Receitas":
         df_r = df[df['tipo'] == 'Receita']
     
     total_r = df_r['valor'].sum()
+    
+    # DEBUG: Show content of df_r to identify sum mismatch
+    with st.expander("🕵️ DEBUG: Revenue Data"):
+        st.write(f"Total Calculated: {total_r}")
+        st.write("Dataframe head:", df_r[['data', 'mes_referencia', 'descricao', 'valor', 'tipo']].head(10))
+        st.write("Dtypes:", df_r.dtypes)
+
 
     st.markdown("##### Tendência diária de Receitas")
     st.markdown('<div class="custom-card">', unsafe_allow_html=True)

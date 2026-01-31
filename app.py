@@ -1459,59 +1459,64 @@ elif selected == "Receitas":
             else:
                 df_r = df_r.sort_values(by="data", ascending=False)
                 
-            last_m_header = None
-            for idx, row in df_r.head(st.session_state['limit_rec']).iterrows():
-                current_m_header = get_month_from_date(row['data'])
-                if current_m_header != last_m_header:
-                    st.markdown(f"<div style='background: #F8FAFC; padding: 5px 10px; border-radius: 5px; font-weight: 600; font-size: 0.8rem; color: #64748B; margin-top: 15px; margin-bottom: 5px;'>{current_m_header.upper()}</div>", unsafe_allow_html=True)
-                    last_m_header = current_m_header
-
-                d_day = row['data'].strftime("%d")
-                d_month = row['data'].strftime("%b").upper()
-                val_fmt = f"+ ${row['valor']:,.2f}"
-                
-                # Layout Row
-                c_row1, c_row2 = st.columns([3.5, 1.5])
-                with c_row1:
-                    st.markdown(f"""
-                    <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0; justify-content: space-between; width: 100%;">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div style="background: #EFF6FF; color: {COLOR_PRIMARY}; width: 50px; height: 50px; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;">
-                                 <span style="font-size: 0.65rem; color: #60A5FA;">{d_month}</span>
-                                 <span style="font-size: 1.1rem; line-height: 1;">{d_day}</span>
-                            </div>
-                            <div>
-                                <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                     <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
+            # Prepare for Expander View
+            df_display = df_r.head(st.session_state['limit_rec']).copy()
+            df_display['month_key_sort'] = df_display['data'].apply(lambda x: get_month_from_date(x))
+            
+            # Using groupby while preserving order (assuming sorted DF)
+            # sort=False ensures we respect the "Antigas/Recentes" order for the months themselves
+            grouped = df_display.groupby('month_key_sort', sort=False)
+            
+            for month_name, group_df in grouped:
+                with st.expander(f"📅 {month_name.upper()}", expanded=True):
+                    for idx, row in group_df.iterrows():
+                        d_day = row['data'].strftime("%d")
+                        d_month = row['data'].strftime("%b").upper()
+                        val_fmt = f"+ ${row['valor']:,.2f}"
+                        
+                        # Layout Row
+                        c_row1, c_row2 = st.columns([3.5, 1.5])
+                        with c_row1:
+                            st.markdown(f"""
+                            <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0; justify-content: space-between; width: 100%;">
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <div style="background: #EFF6FF; color: {COLOR_PRIMARY}; width: 50px; height: 50px; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;">
+                                         <span style="font-size: 0.65rem; color: #60A5FA;">{d_month}</span>
+                                         <span style="font-size: 1.1rem; line-height: 1;">{d_day}</span>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                             <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="font-weight: 700; color: {COLOR_SUCCESS}; font-size: 1rem;">
+                                    {val_fmt}
                                 </div>
                             </div>
-                        </div>
-                        <div style="font-weight: 700; color: {COLOR_SUCCESS}; font-size: 1rem;">
-                            {val_fmt}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    # Ações (Edit + Delete)
-                    with c_row2:
-                        st.markdown('<div class="mobile-row-fix" style="display:none;"></div>', unsafe_allow_html=True)
-                        c_edit, c_del = st.columns([1, 1], gap="small")
+                            """, unsafe_allow_html=True)
                         
-                        # Edit Dialog Button
-                        with c_edit:
-                             if st.button("✏️", key=f"btn_edit_r_{row['id']}"):
-                                 edit_transaction_dialog(row, "receita")
-
-                        # Delete Popover
-                        with c_del:
-                            with st.popover("🗑️"):
-                                st.write("Confirma?")
-                                if st.button("Sim", key=f"del_rec_{row['id']}"):
-                                    if delete_transaction(row['id']):
-                                        st.session_state["toast_msg"] = f"Receita de R$ {row['valor']:.2f} removida."
-                                        st.rerun()
-
-                st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
+                        # Ações (Edit + Delete)
+                        with c_row2:
+                            st.markdown('<div class="mobile-row-fix" style="display:none;"></div>', unsafe_allow_html=True)
+                            c_edit, c_del = st.columns([1, 1], gap="small")
+                            
+                            # Edit Dialog Button
+                            with c_edit:
+                                 if st.button("✏️", key=f"btn_edit_r_{row['id']}"):
+                                     edit_transaction_dialog(row, "receita")
+    
+                            # Delete Popover
+                            with c_del:
+                                with st.popover("🗑️"):
+                                    st.write("Confirma?")
+                                    if st.button("Sim", key=f"del_rec_{row['id']}"):
+                                        if delete_transaction(row['id']):
+                                            st.session_state["toast_msg"] = f"Receita de R$ {row['valor']:.2f} removida."
+                                            st.rerun()
+    
+                        st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
 
             if len(df_r) > st.session_state['limit_rec']:
                 if st.button("+ Carregar mais transações", key="load_more_rec", type="tertiary"):
@@ -1674,62 +1679,64 @@ elif selected == "Despesas":
             else:
                 df_d = df_d.sort_values(by="data", ascending=False)
                 
-            last_m_header_d = None
-            for idx, row in df_d.head(st.session_state['limit_desp']).iterrows():
-                current_m_header_d = get_month_from_date(row['data'])
-                if current_m_header_d != last_m_header_d:
-                    st.markdown(f"<div style='background: #F8FAFC; padding: 5px 10px; border-radius: 5px; font-weight: 600; font-size: 0.8rem; color: #64748B; margin-top: 15px; margin-bottom: 5px;'>{current_m_header_d.upper()}</div>", unsafe_allow_html=True)
-                    last_m_header_d = current_m_header_d
-
-                d_day = row['data'].strftime("%d")
-                d_month = row['data'].strftime("%b").upper()
-                val_fmt = f"- R$ {row['valor']:,.2f}"
-                
-                # Layout Row
-                c_row1, c_row2 = st.columns([3.5, 1.5])
-                with c_row1:
-                    st.markdown(f"""
-                    <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0;">
-                        <div style="background: #FFF1F2; color: {COLOR_DANGER}; width: 50px; height: 50px; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;">
-                                <span style="font-size: 0.65rem; color: #FDA4AF;">{d_month}</span>
-                                <span style="font-size: 1.1rem; line-height: 1;">{d_day}</span>
-                        </div>
-                        <div>
-                            <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
-                                    <span style="background: {'#DEF7EC' if row.get('status')=='Pago' else '#FFFBEB'}; color: {'#03543F' if row.get('status')=='Pago' else '#92400E'}; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row.get('status','Pendente')}</span>
-                                    <span style="color: {COLOR_DANGER}; font-size: 0.85rem; font-weight: 700;">{val_fmt}</span>
+            # Prepare for Expander View
+            df_display_d = df_d.head(st.session_state['limit_desp']).copy()
+            df_display_d['month_key_sort'] = df_display_d['data'].apply(lambda x: get_month_from_date(x))
+            
+            grouped_d = df_display_d.groupby('month_key_sort', sort=False)
+            
+            for month_name, group_df in grouped_d:
+                with st.expander(f"📅 {month_name.upper()}", expanded=True):
+                    for idx, row in group_df.iterrows():
+                        d_day = row['data'].strftime("%d")
+                        d_month = row['data'].strftime("%b").upper()
+                        val_fmt = f"- R$ {row['valor']:,.2f}"
+                        
+                        # Layout Row
+                        c_row1, c_row2 = st.columns([3.5, 1.5])
+                        with c_row1:
+                            st.markdown(f"""
+                            <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0;">
+                                <div style="background: #FFF1F2; color: {COLOR_DANGER}; width: 50px; height: 50px; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;">
+                                        <span style="font-size: 0.65rem; color: #FDA4AF;">{d_month}</span>
+                                        <span style="font-size: 1.1rem; line-height: 1;">{d_day}</span>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
+                                            <span style="background: {'#DEF7EC' if row.get('status')=='Pago' else '#FFFBEB'}; color: {'#03543F' if row.get('status')=='Pago' else '#92400E'}; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row.get('status','Pendente')}</span>
+                                            <span style="color: {COLOR_DANGER}; font-size: 0.85rem; font-weight: 700;">{val_fmt}</span>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with c_row2:
-                    st.markdown('<div class="mobile-row-fix" style="display:none;"></div>', unsafe_allow_html=True)
-                    c_check, c_edit_d, c_del_d = st.columns([1, 1, 1], gap="small")
-                    
-                    # Despesa Actions
-                    with c_check:
-                        if row.get('status') != 'Pago':
-                             if st.button("✅", key=f"pay_{row['id']}", help="Marcar como Pago"):
-                                 if update_transaction(row['id'], {"status": "Pago"}):
-                                     st.session_state["toast_msg"] = "Conta paga! 💸"
-                                     st.rerun()
-
-                    # Edit Dialog Despesa
-                    with c_edit_d:
-                         if st.button("✏️", key=f"btn_edit_d_{row['id']}"):
-                             edit_transaction_dialog(row, "despesa")
-
-                    with c_del_d:
-                        with st.popover("🗑️"):
-                            st.write("Confirma?")
-                            if st.button("Sim", key=f"del_desp_{row['id']}"):
-                                if delete_transaction(row['id']):
-                                    st.session_state["toast_msg"] = f"Despesa de R$ {row['valor']:.2f} removida."
-                                    st.rerun()
-
-                st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
+                            """, unsafe_allow_html=True)
+                        with c_row2:
+                            st.markdown('<div class="mobile-row-fix" style="display:none;"></div>', unsafe_allow_html=True)
+                            c_check, c_edit_d, c_del_d = st.columns([1, 1, 1], gap="small")
+                            
+                            # Despesa Actions
+                            with c_check:
+                                if row.get('status') != 'Pago':
+                                     if st.button("✅", key=f"pay_{row['id']}", help="Marcar como Pago"):
+                                         if update_transaction(row['id'], {"status": "Pago"}):
+                                             st.session_state["toast_msg"] = "Conta paga! 💸"
+                                             st.rerun()
+        
+                            # Edit Dialog Despesa
+                            with c_edit_d:
+                                 if st.button("✏️", key=f"btn_edit_d_{row['id']}"):
+                                     edit_transaction_dialog(row, "despesa")
+        
+                            with c_del_d:
+                                with st.popover("🗑️"):
+                                    st.write("Confirma?")
+                                    if st.button("Sim", key=f"del_desp_{row['id']}"):
+                                        if delete_transaction(row['id']):
+                                            st.session_state["toast_msg"] = f"Despesa de R$ {row['valor']:.2f} removida."
+                                            st.rerun()
+        
+                        st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
 
             if len(df_d) > st.session_state['limit_desp']:
                 if st.button("+ Carregar mais transações", key="load_more_desp", type="tertiary"):

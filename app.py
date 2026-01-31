@@ -344,6 +344,7 @@ def delete_transaction(doc_id):
     else:
         try:
             db.collection(COLLECTION_NAME).document(doc_id).delete()
+            get_transactions.clear()
             return True
         except Exception as e:
             st.error(f"Erro ao excluir: {e}")
@@ -366,6 +367,7 @@ def update_transaction(doc_id, data):
                 data['data'] = datetime.combine(data['data'], datetime.min.time())
                 
             db.collection(COLLECTION_NAME).document(doc_id).update(data)
+            get_transactions.clear()
             return True
         except Exception as e:
             st.error(f"Erro ao atualizar: {e}")

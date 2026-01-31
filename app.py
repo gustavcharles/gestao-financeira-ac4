@@ -90,6 +90,18 @@ def auth_screen():
             border: none;
             padding: 0;
         }
+        /* Configurando botão Primário do Form (Entrar) */
+        div[data-testid="stForm"] button[kind="primary"] {
+            background-color: #2563EB !important;
+            border-color: #2563EB !important;
+            color: white !important;
+            border-radius: 12px !important;
+            font-weight: 600 !important;
+        }
+        div[data-testid="stForm"] button[kind="primary"]:hover {
+            background-color: #1D4ED8 !important;
+            border-color: #1D4ED8 !important;
+        }
         </style>
     """, unsafe_allow_html=True)
 

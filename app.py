@@ -109,6 +109,41 @@ def auth_screen():
             border-color: #1E40AF !important;
             color: white !important;
         }
+        
+        /* Mobile Layout Fixes - Strong Override */
+        /* Mobile Layout Fixes - Aggressive Override */
+        @media only screen and (max-width: 900px) {
+            /* Force ALL horizontal blocks (columns) to stay horizontal (row) */
+            [data-testid="stHorizontalBlock"] {
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                gap: 2px !important; /* Tiny gap to fit */
+                width: 100% !important;
+            }
+            
+            /* Allow columns to shrink to miniscule widths if needed */
+            [data-testid="column"] {
+                flex: 1 1 auto !important; 
+                min-width: 0 !important;
+                width: auto !important;
+                padding: 0 2px !important; /* Reduce padding to save space */
+            }
+            
+            /* Compact Buttons */
+            button[kind="secondary"], button[kind="primary"], div[data-testid="baseButton-secondary"], div[data-testid="baseButton-primary"] {
+                padding: 0.2rem 0.2rem !important; /* Super compact */
+                min-height: auto !important;
+                height: auto !important;
+                line-height: 1.2 !important;
+            }
+            
+            /* Hide the text in buttons if they have icons? No, just keep them small */
+            
+            /* Fix specific to the nested action columns to ensure they don't break */
+            div[data-testid="stHorizontalBlock"] > div[data-testid="column"] > div[data-testid="stHorizontalBlock"] {
+                 flex-direction: row !important;
+            }
+        }
         </style>
     """, unsafe_allow_html=True)
 

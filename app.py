@@ -40,53 +40,142 @@ def register_user(email, password):
         return {"error": res.json()}
 
 def auth_screen():
-    st.markdown("<h2 style='text-align: center;'>🔐 Acesso Restrito</h2>", unsafe_allow_html=True)
-    
+    # --- CUSTOM LOGIN CSS ---
+    st.markdown("""
+        <style>
+        .login-container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 40px 30px;
+            background: #FFFFFF;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .login-logo {
+            font-size: 3rem; 
+            margin-bottom: 10px;
+            color: #2563EB;
+        }
+        .login-title {
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            font-size: 1.8rem;
+            color: #1E293B;
+            margin-bottom: 5px;
+        }
+        .login-subtitle {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            color: #64748B;
+            margin-bottom: 30px;
+        }
+        /* Style Streamlit Widgets inside centered column */
+        .stTextInput input {
+            border-radius: 12px;
+            padding: 10px 12px;
+            border: 1px solid #E2E8F0;
+            background-color: #F8FAFC;
+        }
+        .stTextInput input:focus {
+            border-color: #2563EB;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+        }
+        div[data-testid="stForm"] {
+            border: none;
+            padding: 0;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     if not FIREBASE_WEB_API_KEY:
         st.error("⚠️ Erro de Configuração: API Key não encontrada no secrets.toml")
-        st.info("Adicione [firebase_web] api_key = '...' ao seu arquivo .streamlit/secrets.toml")
         return
 
-    tab1, tab2 = st.tabs(["Login", "Criar Conta"])
+    # Layout Centered
+    c1, c2, c3 = st.columns([1, 2, 1])
     
-    with tab1:
-        with st.form("login_form"):
-            email = st.text_input("Email")
-            password = st.text_input("Senha", type="password")
-            submit = st.form_submit_button("Entrar", use_container_width=True, type="primary")
-            
-            if submit:
-                if not email or not password:
-                    st.warning("Preencha todos os campos.")
-                else:
-                    try:
-                        resp = login_user(email, password)
-                        if "error" in resp:
-                            st.error(f"Erro: {resp['error'].get('error', {}).get('message', 'Falha no login')}")
-                        else:
-                            st.session_state['user_info'] = resp
-                            st.rerun()
-                    except Exception as e:
-                        st.error(f"Erro de conexão: {e}")
+    with c2:
+        # Toggle Login vs Register (using session state to switch "modes" inside the same card feel)
+        if "auth_mode" not in st.session_state: st.session_state["auth_mode"] = "login"
 
-    with tab2:
-        with st.form("register_form"):
-            new_email = st.text_input("Email")
-            new_pass = st.text_input("Senha", type="password")
-            new_pass_conf = st.text_input("Confirmar Senha", type="password")
-            submit_reg = st.form_submit_button("Criar Conta", use_container_width=True)
-            
-            if submit_reg:
-                if new_pass != new_pass_conf:
-                    st.error("Senhas não conferem.")
-                elif len(new_pass) < 6:
-                    st.warning("A senha deve ter pelo menos 6 caracteres.")
-                else:
-                    resp = register_user(new_email, new_pass)
-                    if "error" in resp:
-                         st.error(f"Erro: {resp['error'].get('error', {}).get('message', 'Falha no cadastro')}")
+        # Header Area
+        st.markdown(f"""
+            <div style="text-align: center; margin-bottom: 20px;">
+                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div style="color: #2563EB; font-weight: bold;">🛡️</div>
+                    <div style="color: #64748B; font-size: 0.8rem; font-weight: 600;">SEGURO</div>
+                 </div>
+                 <div style="background: #EFF6FF; width: 60px; height: 60px; border-radius: 30px; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: #2563EB;">
+                    🛡️
+                 </div>
+                 <h1 style="font-size: 1.6rem; font-weight: 800; color: #1E293B; margin: 0;">Gestão AC-4</h1>
+                 <p style="color: #64748B; font-size: 0.9rem;">Acesse sua conta para gerenciar as finanças</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+        if st.session_state["auth_mode"] == "login":
+            with st.form("login_form"):
+                email = st.text_input("E-mail ou Usuário", placeholder="exemplo@ac4.com")
+                password = st.text_input("Senha", type="password", placeholder="••••••••")
+                
+                submitted = st.form_submit_button("Entrar", type="primary", use_container_width=True)
+                
+                if submitted:
+                    if not email or not password:
+                        st.warning("Preencha todos os campos.")
                     else:
-                        st.success("Conta criada! Tente fazer login.")
+                        try:
+                            resp = login_user(email, password)
+                            if "error" in resp:
+                                st.error("Falha no login. Verifique suas credenciais.")
+                            else:
+                                st.session_state['user_info'] = resp
+                                st.rerun()
+                        except:
+                            st.error("Erro de conexão.")
+            
+            st.markdown("""
+                <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.85rem;">
+                    <label style="color: #64748B;"><input type="checkbox"> Lembrar de mim</label>
+                    <a href="#" style="color: #2563EB; text-decoration: none; font-weight: 600;">Esqueceu a senha?</a>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("---")
+            if st.button("Ainda não tem acesso? **Crie sua conta**", type="tertiary", use_container_width=True):
+                st.session_state["auth_mode"] = "register"
+                st.rerun()
+
+        else: # Register Mode
+            with st.form("register_form"):
+                new_email = st.text_input("E-mail")
+                new_pass = st.text_input("Senha", type="password")
+                new_pass_conf = st.text_input("Confirmar Senha", type="password")
+                
+                submitted_reg = st.form_submit_button("Criar Conta", type="primary", use_container_width=True)
+                
+                if submitted_reg:
+                    if new_pass != new_pass_conf:
+                        st.error("Senhas não conferem.")
+                    else:
+                        resp = register_user(new_email, new_pass)
+                        if "error" in resp:
+                             st.error("Erro ao criar conta.")
+                        else:
+                            st.success("Conta criada! Voltando para login...")
+                            st.session_state["auth_mode"] = "login"
+                            st.rerun()
+            
+            if st.button("Já tem uma conta? **Fazer Login**", type="tertiary", use_container_width=True):
+                 st.session_state["auth_mode"] = "login"
+                 st.rerun()
+
+        st.markdown("""
+            <div style="text-align: center; margin-top: 30px; font-size: 0.75rem; color: #94A3B8; font-weight: 600; letter-spacing: 1px;">
+                <span style="opacity: 0.7;">🛡️ SEGURANÇA CRIPTOGRAFADA AC-4</span>
+            </div>
+        """, unsafe_allow_html=True)
 
 # --- FUNÇÃO DE SANITIZAÇÃO ---
 def sanitize_input(text):

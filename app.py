@@ -993,7 +993,7 @@ def generate_advanced_insights(df, mes_sel):
 def generate_pdf_report(df, month_str):
     def safe_text(text):
         if not isinstance(text, str): text = str(text)
-        return text.encode('latin-1', 'replace').decode('latin-1')
+        return text.encode('latin-1', 'ignore').decode('latin-1')
 
     pdf = PDF()
     pdf.add_page()
@@ -1035,8 +1035,8 @@ def generate_pdf_report(df, month_str):
     insights_list = generate_advanced_insights(df, month_str)
     if insights_list:
         for insight in insights_list:
-            # Clean md bold syntax for PDF
-            clean_text = insight.replace("**", "").replace("📊", "").replace("💡", "").replace("⚠️", "").strip()
+            # Clean md bold syntax for PDF & remove emojis
+            clean_text = insight.replace("**", "").replace("R$", "R$").strip()
             pdf.multi_cell(0, 6, f"- {safe_text(clean_text)}")
     else:
         pdf.cell(0, 6, safe_text("Sem insights gerados para o periodo."), 0, 1)
@@ -1095,6 +1095,8 @@ def generate_pdf_report(df, month_str):
         
         # Rows
         pdf.set_font("Arial", '', 9)
+        total_val = 0.0
+        
         if dataframe.empty:
             pdf.cell(sum(col_w), 7, safe_text("Sem registros."), 1, 1, 'C')
         else:
@@ -1103,15 +1105,24 @@ def generate_pdf_report(df, month_str):
                     d_str = row['data'].strftime("%d/%m/%Y") if hasattr(row['data'], 'strftime') else str(row['data'])[:10]
                     desc = str(row.get('descricao', '-'))[:35]
                     cat = str(row.get('categoria', '-'))[:25]
-                    val = f"R$ {row.get('valor', 0):,.2f}"
+                    val_float = float(row.get('valor', 0))
+                    total_val += val_float
+                    val_fmt = f"R$ {val_float:,.2f}"
                     
                     pdf.cell(col_w[0], 7, safe_text(d_str), 1, 0, 'C')
                     pdf.cell(col_w[1], 7, safe_text(desc), 1, 0, 'L')
                     pdf.cell(col_w[2], 7, safe_text(cat), 1, 0, 'L')
-                    pdf.cell(col_w[3], 7, safe_text(val), 1, 0, 'R')
+                    pdf.cell(col_w[3], 7, safe_text(val_fmt), 1, 0, 'R')
                     pdf.ln()
                 except:
                     continue
+            
+            # Total Row
+            pdf.set_font("Arial", 'B', 9)
+            pdf.cell(sum(col_w[:3]), 7, safe_text("TOTAL"), 1, 0, 'R')
+            pdf.cell(col_w[3], 7, safe_text(f"R$ {total_val:,.2f}"), 1, 0, 'R')
+            pdf.ln()
+            
         pdf.ln(5)
 
     # Table: Receitas

@@ -1422,7 +1422,7 @@ elif selected == "Receitas":
         
         # Sort Control Receita
         with c_filt_r:
-            sort_r = st.radio("Ord.", ["⬆️ Antigas", "⬇️ Recentes"], horizontal=True, label_visibility="collapsed", key="sort_rec")
+            sort_r = st.radio("Ord.", ["⬆️ Antigas", "⬇️ Recentes"], horizontal=True, label_visibility="collapsed", key="sort_rec_v2")
         
         # Filter Logic
         if "rec_filter_cat" not in st.session_state: st.session_state["rec_filter_cat"] = "All"
@@ -1663,7 +1663,7 @@ elif selected == "Despesas":
         
         # Sort Control Despesa
         with c_filter:
-            sort_d = st.radio("Ord.", ["⬆️ Antigas", "⬇️ Recentes"], horizontal=True, label_visibility="collapsed", key="sort_desp") 
+            sort_d = st.radio("Ord.", ["⬆️ Antigas", "⬇️ Recentes"], horizontal=True, label_visibility="collapsed", key="sort_desp_v2") 
 
         st.markdown('<div class="custom-card" style="padding: 10px 20px;">', unsafe_allow_html=True)
         if not df_d.empty:

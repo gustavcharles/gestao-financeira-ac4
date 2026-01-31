@@ -1271,6 +1271,10 @@ if is_admin:
     menu_opts.append("Admin")
     menu_icons.append("shield-lock-fill")
 
+# Add Logout Option
+menu_opts.append("Sair")
+menu_icons.append("box-arrow-right")
+
 selected = option_menu(
     menu_title=None,
     options=menu_opts,
@@ -1282,6 +1286,10 @@ selected = option_menu(
         "nav-link-selected": {"background-color": COLOR_PRIMARY, "color": "white", "font-weight": "600"},
     }
 )
+
+if selected == "Sair":
+    st.session_state.clear()
+    st.rerun()
 
 with st.spinner("Carregando seus dados..."):
     # Pass user_id explicitly to fix cache collision

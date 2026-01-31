@@ -1159,14 +1159,14 @@ if selected == "Dashboard":
 
     # Display Saldo as a big feature
     st.markdown(f"""
-    <div style="background: linear-gradient(135deg, {COLOR_PRIMARY} 0%, {COLOR_BG} 150%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 20px; border: 1px solid {COLOR_BORDER};">
-        <div style="color: {COLOR_TEXT}; font-size: 1rem; margin-bottom: 5px;">Saldo do Mês</div>
-        <div style="font-size: 2.5rem; font-weight: 800; color: {COLOR_PRIMARY};">
+    <div style="background: linear-gradient(135deg, {COLOR_PRIMARY} 0%, {COLOR_BG} 150%); padding: 20px; border-radius: 15px; box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.2); margin-bottom: 20px; border: 1px solid {COLOR_BORDER};">
+        <div style="color: #FFFFFF; font-size: 1.1rem; margin-bottom: 5px; font-weight: 500; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">Saldo do Mês</div>
+        <div style="font-size: 2.8rem; font-weight: 800; color: #FFFFFF; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
             {format_currency(saldo)}
         </div>
-        <div style="font-size: 0.9rem; color: {COLOR_TEXT_LIGHT};">
-            Receitas: <span style="color: {COLOR_SUCCESS}; font-weight: 600;">{format_currency(rec)}</span> | 
-            Despesas: <span style="color: {COLOR_DANGER}; font-weight: 600;">{format_currency(desp)}</span>
+        <div style="font-size: 0.95rem; color: #F1F5F9; margin-top: 5px; font-weight: 500; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
+            Receitas: <span style="color: #6EE7B7; font-weight: 700;">{format_currency(rec)}</span> &nbsp;|&nbsp; 
+            Despesas: <span style="color: #FCA5A5; font-weight: 700;">{format_currency(desp)}</span>
         </div>
     </div>
     """, unsafe_allow_html=True)

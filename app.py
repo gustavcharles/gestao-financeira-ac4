@@ -562,12 +562,22 @@ def generate_pdf_report(df, month_str):
             ax.axis('equal')
             plt.title("Distribuicao por Categoria")
             
-            img_buf = io.BytesIO()
-            plt.savefig(img_buf, format='png')
+            # Save to temp file (FPDF requires file path in older versions)
+            import tempfile
+            import os
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                plt.savefig(tmp.name, format='png')
+                tmp_path = tmp.name
+                
             plt.close(fig)
             
             # PDF Image
-            pdf.image(img_buf, x=10, y=None, w=100)
+            try:
+                pdf.image(tmp_path, x=10, y=None, w=100)
+            finally:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
     else:
         pdf.set_font("Arial", 'I', 11)
         pdf.cell(0, 10, "Sem dados de despesas.", 0, 1)

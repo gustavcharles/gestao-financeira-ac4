@@ -454,16 +454,18 @@ def edit_transaction_dialog(row, tipo_cat_key):
 
     # Botão Duplicar
     if st.button("📑 Duplicar Transação", use_container_width=True):
-        # Converter Pandas Series para dict puro para evitar erro "The truth value of a Series is ambiguous"
-        if isinstance(row, pd.Series):
-            new_data = row.to_dict().copy()
-        else:
-            new_data = row.copy()
-            
-        new_data['id'] = str(uuid.uuid4())
-        new_data['descricao'] = f"{row['descricao']} (Cópia)"
-        new_data['status'] = "Pendente"
-        # Mantém a data original ou muda para hoje? Vamos manter original para facilitar
+        # Usar os dados editados no formulário para a cópia
+        new_data = {
+            "id": str(uuid.uuid4()),
+            "descricao": sanitize_input(e_desc), # Usa o que está no input agora
+            "valor": e_val,
+            "categoria": e_cat,
+            "data": e_date,
+            "mes_referencia": e_ref,
+            "status": "Pendente", # Reseta status
+            "recorrente": e_rec,
+            "tipo": row['tipo'] # Mantém o tipo original
+        }
         
         if add_transaction(new_data):
             st.session_state["toast_msg"] = "Transação duplicada! 📑"

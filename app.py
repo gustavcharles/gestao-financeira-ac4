@@ -13,11 +13,22 @@ from fpdf import FPDF
 import io
 import html
 import requests
+from PIL import Image
+import os
 
 # --- PAGE CONFIG (MUST BE FIRST) ---
+# Tenta carregar imagem local, senão usa emoji
+try:
+    if os.path.exists("assets/logo.png"):
+        icon_img = Image.open("assets/logo.png")
+    else:
+        icon_img = "💸"
+except:
+    icon_img = "💸"
+
 st.set_page_config(
     page_title="Gestão Financeira AC-4",
-    page_icon="💸", # Pode ser um emoji ou caminho para arquivo .png
+    page_icon=icon_img,
     layout="wide",
     initial_sidebar_state="collapsed"
 )

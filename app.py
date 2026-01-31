@@ -15,12 +15,41 @@ import html
 import requests
 from PIL import Image
 import os
+import base64
+
+def set_custom_icon(icon_path):
+    """Force override Streamlit icon with custom HTML injection"""
+    if not os.path.exists(icon_path): return
+    
+    with open(icon_path, "rb") as f:
+        data = f.read()
+        encoded = base64.b64encode(data).decode()
+        
+    icon_url = f"data:image/png;base64,{encoded}"
+    
+    st.markdown(
+        f"""
+        <style>
+            /* Override Streamlit Icon in some contexts */
+        </style>
+        <script>
+            var link = document.querySelector("link[rel~='icon']");
+            if (!link) {{
+                link = document.createElement('link');
+                link.rel = 'icon';
+                document.getElementsByTagName('head')[0].appendChild(link);
+            }}
+            link.href = '{icon_url}';
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
 
 # --- PAGE CONFIG (MUST BE FIRST) ---
-# Tenta carregar imagem local, senão usa emoji
+# 1. Standard Config
 try:
     if os.path.exists("assets/logo.png"):
-        icon_img = Image.open("assets/logo.png")
+        icon_img = Image.open("assets/logo.png") 
     else:
         icon_img = "💸"
 except:
@@ -32,6 +61,10 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# 2. Forceful Injection (Call immediately after config)
+if os.path.exists("assets/logo.png"):
+    set_custom_icon("assets/logo.png")
 
 # --- HELPER FUNCTIONS ---
 def format_currency(value):

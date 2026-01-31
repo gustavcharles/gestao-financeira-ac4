@@ -2257,3 +2257,19 @@ if is_admin and selected == "Admin":
                     
             except Exception as e:
                 st.error(f"Erro na migração: {e}")
+
+        st.divider()
+        st.markdown("### 🔬 Diagnóstico (Raio-X)")
+        if st.checkbox("Mostrar dados brutos do banco (Todos os usuários)"):
+            all_docs_debug = db.collection(COLLECTION_NAME).limit(50).stream()
+            debug_data = []
+            for d in all_docs_debug:
+                dd = d.to_dict()
+                dd['id'] = d.id
+                debug_data.append(dd)
+            
+            if debug_data:
+                st.dataframe(pd.DataFrame(debug_data))
+                st.info(f"Visualizando {len(debug_data)} registros brutos.")
+            else:
+                st.warning("O banco de dados parece estar vazio!")

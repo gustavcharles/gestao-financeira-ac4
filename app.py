@@ -483,15 +483,22 @@ st.markdown(f"""
     }}
 
     /* Estilo Específico para Botões de Popover e Download (Fix Dark Mode) */
-    div[data-testid="stPopover"] > button,
-    div[data-testid="stDownloadButton"] > button {{
+    div[data-testid="stPopover"] button,
+    div[data-testid="stDownloadButton"] button {{
         background-color: {COLOR_BTN_POPOVER} !important;
         color: white !important;
         border: 1px solid {COLOR_BORDER} !important;
     }}
-    div[data-testid="stPopover"] > button p, 
-    div[data-testid="stDownloadButton"] > button p,
-    div[data-testid="stDownloadButton"] > button div {{
+    
+    div[data-testid="stPopover"] button:hover,
+    div[data-testid="stDownloadButton"] button:hover {{
+        filter: brightness(110%);
+        color: white !important;
+    }}
+
+    div[data-testid="stPopover"] button p, 
+    div[data-testid="stDownloadButton"] button p,
+    div[data-testid="stDownloadButton"] button div {{
         color: white !important;
     }}
     

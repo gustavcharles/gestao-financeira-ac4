@@ -301,6 +301,7 @@ db = init_connection()
 COLLECTION_NAME = "transacoes"
 
 # --- HELPER FUNCTIONS ---
+@st.cache_data(ttl=300)
 def get_transactions():
     if db is None:
         data = st.session_state['mock_data']
@@ -340,6 +341,9 @@ def delete_transaction(doc_id):
         except Exception as e:
             st.error(f"Erro ao excluir: {e}")
             return False
+            
+    get_transactions.clear()
+    return True
 
 def update_transaction(doc_id, data):
     if db is None:
@@ -359,6 +363,9 @@ def update_transaction(doc_id, data):
         except Exception as e:
             st.error(f"Erro ao atualizar: {e}")
             return False
+            
+    get_transactions.clear()
+    return True
 
 
 def add_transaction(data):
@@ -382,6 +389,9 @@ def add_transaction(data):
         except Exception as e:
             st.error(f"Erro ao salvar: {e}")
             return False
+            
+    get_transactions.clear()
+    return True
 
 @st.dialog("✏️ Editar Transação")
 def edit_transaction_dialog(row, tipo_cat_key):

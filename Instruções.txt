@@ -1,0 +1,11 @@
+Firebase do projeto - e-mail: guganauta@gmail.com
+Streamlit
+GitHub
+
+
+
+Deploy:
+
+git add .
+git commit -m "Nomeie a alteração"
+git push

@@ -655,23 +655,74 @@ def generate_advanced_insights(df, mes_sel):
     if df.empty:
         return []
     
-    # Padrões de gastos
-    df_desp = df[df['tipo'] == 'Despesa']
+    # --- 1. MAIOR CATEGORIA DE GASTO ---
+    if not df_desp.empty:
+        cat_grp = df_desp[df_desp['mes_referencia'] == mes_sel].groupby('categoria')['valor'].sum()
+        if not cat_grp.empty:
+            top_cat = cat_grp.idxmax()
+            top_val = cat_grp.max()
+            insights.append(f"📊 **Onde você mais gastou:** A categoria **{top_cat}** consumiu **R$ {top_val:,.2f}** este mês.")
+
+    # --- 2. MAIOR TRANSAÇÃO ÚNICA ---
+    if not df_desp.empty:
+        df_curr = df_desp[df_desp['mes_referencia'] == mes_sel]
+        if not df_curr.empty:
+            max_row = df_curr.loc[df_curr['valor'].idxmax()]
+            insights.append(f"� **Maior compra:** {max_row['descricao']} no valor de **R$ {max_row['valor']:,.2f}**.")
+            
+    # --- 3. COMPARAÇÃO COM MÊS ANTERIOR ---
+    if not df_desp.empty:
+        # Calcular mês anterior
+        try:
+           # Extrair mês e ano do mes_sel (ex: "Janeiro 2026")
+           meses_pt = {"Janeiro": 1, "Fevereiro": 2, "Março": 3, "Abril": 4, "Maio": 5, "Junho": 6, 
+                       "Julho": 7, "Agosto": 8, "Setembro": 9, "Outubro": 10, "Novembro": 11, "Dezembro": 12}
+           nome_mes, ano_str = mes_sel.split()
+           mes_num = meses_pt.get(nome_mes, 0)
+           
+           if mes_num > 1:
+               mes_ant_num = mes_num - 1
+               ano_ant = int(ano_str)
+           else:
+               mes_ant_num = 12
+               ano_ant = int(ano_str) - 1
+               
+           nome_mes_ant = [k for k,v in meses_pt.items() if v == mes_ant_num][0]
+           mes_ref_ant = f"{nome_mes_ant} {ano_ant}"
+           
+           val_atual = df_desp[df_desp['mes_referencia'] == mes_sel]['valor'].sum()
+           val_ant = df_desp[df_desp['mes_referencia'] == mes_ref_ant]['valor'].sum()
+           
+           if val_ant > 0:
+               diff = val_atual - val_ant
+               perc = (diff / val_ant) * 100
+               if diff > 0:
+                   insights.append(f"⚠️ **Atenção:** Seus gastos aumentaram **{perc:.1f}%** (R$ {diff:,.2f}) em relação a {mes_ref_ant}.")
+               elif diff < 0:
+                   insights.append(f"📉 **Bom sinal:** Seus gastos diminuíram **{abs(perc):.1f}%** em relação a {mes_ref_ant}.")
+        except:
+             pass # Erro ao calcular mês anterior (primeiro mês ou formato inválido)
+
+    # --- 4. ALERTA DE ORÇAMENTO (GASTOS vs RECEITAS) ---
+    receita_mes = df[(df['tipo'] == 'Receita') & (df['mes_referencia'] == mes_sel)]['valor'].sum()
+    despesa_mes = df[(df['tipo'] == 'Despesa') & (df['mes_referencia'] == mes_sel)]['valor'].sum()
+    
+    if receita_mes > 0:
+        comprometido = (despesa_mes / receita_mes) * 100
+        if comprometido > 90:
+             insights.append(f"🚨 **Alerta Vermelho:** Você já gastou **{comprometido:.1f}%** da sua renda deste mês!")
+        elif comprometido > 70:
+             insights.append(f"👀 **Olho vivo:** Suas despesas já somam **{comprometido:.1f}%** do que você ganhou.")
+
+    # Padrões de gastos (Fim de semana) - Mantido
     if not df_desp.empty:
         day_of_week = df_desp['data'].dt.dayofweek
-        if not day_of_week.empty and day_of_week.mode()[0] in [5, 6]:  # Fim de semana
-            insights.append("💡 **Dica:** Você tende a gastar mais nos fins de semana! Que tal planejar atividades gratuitas?")
-    
-    # Economia potencial
-    if 'mes_referencia' in df_desp.columns:
-        media_mes = df_desp.groupby('mes_referencia')['valor'].sum().mean()
-        mes_atual_desp = df_desp[df_desp['mes_referencia'] == mes_sel]['valor'].sum()
-        
-        # Só mostra se economia for significativa (> R$ 50 e < 90% da média)
-        if media_mes > 0 and mes_atual_desp < media_mes * 0.9:
-            economia = media_mes - mes_atual_desp
-            if economia > 50:
-                 insights.append(f"🎉 **Parabéns!** Você economizou **R$ {economia:.2f}** em relação à sua média mensal!")
+        # Check only current month for weekend trend to be more relevant
+        df_curr_desp = df_desp[df_desp['mes_referencia'] == mes_sel]
+        if not df_curr_desp.empty:
+             day_of_week = df_curr_desp['data'].dt.dayofweek
+             if not day_of_week.empty and day_of_week.mode()[0] in [5, 6]:  # Fim de semana
+                 insights.append("💡 **Dica:** Neste mês, seus gastos estão concentrados no fim de semana.")
     
     return insights
 

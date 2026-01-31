@@ -9,6 +9,9 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 import json
+from fpdf import FPDF
+import matplotlib.pyplot as plt
+import io
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -498,7 +501,78 @@ def generate_ai_insights(df, month_str):
     if not insights:
         insights.append("Tudo parece estável. Sem variações bruscas detectadas.")
         
+        
     return insights
+
+class PDF(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 14)
+        self.cell(0, 10, 'Relatório Financeiro Executivo', 0, 1, 'C')
+        self.ln(5)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, f'Pág. {self.page_no()}', 0, 0, 'C')
+
+def generate_pdf_report(df, month_str):
+    pdf = PDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    
+    # Title Context
+    pdf.cell(0, 10, txt=f"Periodo: {month_str}", ln=True, align='C')
+    pdf.ln(5)
+    
+    # Data Prep
+    if month_str != "Todos":
+        df_filt = df[df['mes_referencia'] == month_str]
+    else:
+        df_filt = df
+
+    rec = df_filt[df_filt['tipo']=='Receita']['valor'].sum()
+    desp = df_filt[df_filt['tipo']=='Despesa']['valor'].sum()
+    saldo = rec - desp
+    
+    # 1. Summary
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "1. Resumo Financeiro", 0, 1)
+    pdf.set_font("Arial", size=12)
+    pdf.cell(0, 8, f"Receitas: R$ {rec:,.2f}", 0, 1)
+    pdf.cell(0, 8, f"Despesas: R$ {desp:,.2f}", 0, 1)
+    
+    # Color logic for balance
+    pdf.set_text_color(0, 150, 0) if saldo >= 0 else pdf.set_text_color(200, 0, 0)
+    pdf.cell(0, 8, f"Saldo Liquido: R$ {saldo:,.2f}", 0, 1)
+    pdf.set_text_color(0, 0, 0) # Reset
+    pdf.ln(5)
+    
+    # 2. Charts (Matplotlib)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "2. Detalhamento de Despesas", 0, 1)
+    
+    if not df_filt.empty and desp > 0:
+        df_d = df_filt[df_filt['tipo'] == 'Despesa']
+        if not df_d.empty:
+            cat_sums = df_d.groupby('categoria')['valor'].sum()
+            
+            # Create Pie Chart
+            fig, ax = plt.subplots(figsize=(6, 4))
+            ax.pie(cat_sums, labels=cat_sums.index, autopct='%1.1f%%', startangle=90)
+            ax.axis('equal')
+            plt.title("Distribuicao por Categoria")
+            
+            img_buf = io.BytesIO()
+            plt.savefig(img_buf, format='png')
+            plt.close(fig)
+            
+            # PDF Image
+            pdf.image(img_buf, x=10, y=None, w=100)
+    else:
+        pdf.set_font("Arial", 'I', 11)
+        pdf.cell(0, 10, "Sem dados de despesas.", 0, 1)
+        
+    return pdf.output(dest='S').encode('latin-1', 'replace')
 
 # --- COMPONENTES HTML CUSTOMIZADOS ---
 def card_metric(label, value, delta=None, delta_type="pos"):
@@ -1066,6 +1140,36 @@ elif selected == "Config":
             st.rerun()
             
     st.divider()
-    if st.button("Exportar CSV", use_container_width=True):
-        st.toast("Download iniciado...")
+    st.markdown("##### 📤 Exportar Dados")
+    
+    # CSV
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📄 Baixar Planilha Completa (CSV)",
+        data=csv,
+        file_name='transacoes_financeiras.csv',
+        mime='text/csv',
+        use_container_width=True
+    )
+    
+    # PDF Report
+    # Filter selection for report
+    meses_rep = sorted(df['mes_referencia'].unique(), reverse=True)
+    if not meses_rep: meses_rep = [mes_atual]
+    rep_month = st.selectbox("Selecione o mês do relatório:", ["Todos"] + list(meses_rep))
+    
+    if st.button("📑 Gerar Relatorio Executivo (PDF)", use_container_width=True):
+        try:
+            pdf_bytes = generate_pdf_report(df, rep_month)
+            st.download_button(
+                label="⬇️ Baixar PDF Agora",
+                data=pdf_bytes,
+                file_name=f"relatorio_financeiro_{rep_month.replace(' ', '_')}.pdf",
+                mime='application/pdf',
+                use_container_width=True,
+                key='pdf_download_btn'
+            )
+        except Exception as e:
+            st.error(f"Erro ao gerar PDF: {e}")
+
     st.markdown('</div>', unsafe_allow_html=True)

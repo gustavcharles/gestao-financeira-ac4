@@ -382,6 +382,12 @@ db = init_connection()
 COLLECTION_NAME = "transacoes"
 
 # --- HELPER FUNCTIONS ---
+def ensure_firestore_compatible(data):
+    """Garante que datas sejam datetime para compatibilidade com Firestore."""
+    if 'data' in data and isinstance(data['data'], date) and not isinstance(data['data'], datetime):
+         data['data'] = datetime.combine(data['data'], datetime.min.time())
+    return data
+
 @st.cache_data(ttl=300)
 def get_transactions():
     if db is None:
@@ -438,9 +444,8 @@ def update_transaction(doc_id, data):
         return True
     else:
         try:
-             # Converter date para datetime para o Firestore (apenas se 'data' estiver no update)
-            if 'data' in data and isinstance(data['data'], date) and not isinstance(data['data'], datetime):
-                data['data'] = datetime.combine(data['data'], datetime.min.time())
+             # Refactored: Use helper
+            data = ensure_firestore_compatible(data)
                 
             db.collection(COLLECTION_NAME).document(doc_id).update(data)
             get_transactions.clear()
@@ -470,10 +475,8 @@ def add_transaction(data):
         return True
     else:
         try:
-            # Converter date para datetime para o Firestore (se necessário)
-            # Firestore aceita datetime, mas st.date_input retorna date
-            if isinstance(data['data'], date) and not isinstance(data['data'], datetime):
-                data['data'] = datetime.combine(data['data'], datetime.min.time())
+            # Refactored: Use helper
+            data = ensure_firestore_compatible(data)
             
             # FIX: Add User ID
             data['user_id'] = st.session_state['user_info']['localId']

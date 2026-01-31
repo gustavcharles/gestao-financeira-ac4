@@ -2224,39 +2224,68 @@ if is_admin and selected == "Admin":
         st.markdown("### 🕵️‍♂️ Resgate de Dados Antigos")
         st.warning("Use isso se seus lançamentos sumiram após a atualização de Login.")
         
-        if st.button("🔍 Buscar e Adotar Dados Órfãos", type="primary"):
+        if st.button("🔍 Buscar e Adotar Dados Órfãos (Sem ID)", type="primary"):
             try:
-                # 1. Buscar TUDO (sem filtro de usuario)
+                # 1. Buscar TUDO
                 all_docs = db.collection(COLLECTION_NAME).stream()
-                
                 my_uid = st.session_state['user_info']['localId']
                 recovered_count = 0
                 progr = st.progress(0)
                 
-                # Coletar tasks
                 updates = []
                 for doc in all_docs:
                     d = doc.to_dict()
-                    # Se NÃO tem user_id, é órfão
                     if 'user_id' not in d:
                         updates.append(doc.reference)
                 
-                # Aplicar updates
                 if not updates:
-                    st.info("Nenhum dado órfão encontrado. Tudo parece estar certo!")
+                    st.info("Nenhum dado completamente sem ID encontrado.")
                 else:
                     total = len(updates)
                     for i, ref in enumerate(updates):
                         ref.update({"user_id": my_uid})
                         recovered_count += 1
                         progr.progress((i + 1) / total)
-                    
-                    st.success(f"Sucesso! {recovered_count} lançamentos antigos foram vinculados à sua conta.")
-                    get_transactions.clear() # Limpar cache para ver os novos dados
-                    st.balloons()
-                    
+                    st.success(f"Sucesso! {recovered_count} órfãos resgatados.")
+                    get_transactions.clear()
             except Exception as e:
-                st.error(f"Erro na migração: {e}")
+                st.error(f"Erro: {e}")
+
+        st.divider()
+        st.markdown("### 🔄 Transferência de Contas (Merge)")
+        st.info("Se você mudou de conta e seus dados ficaram na antiga, use isso.")
+        
+        # Listar IDs únicos encontrados
+        if st.button("Ver IDs no Banco"):
+            try:
+                all_docs_scan = db.collection(COLLECTION_NAME).stream()
+                found_uids = {}
+                my_uid = st.session_state['user_info']['localId']
+                
+                for doc in all_docs_scan:
+                    d = doc.to_dict()
+                    uid = d.get('user_id', 'SEM_ID')
+                    if uid not in found_uids: found_uids[uid] = 0
+                    found_uids[uid] += 1
+                
+                st.write(f"**Seu ID atual:** `{my_uid}`")
+                
+                for uid, count in found_uids.items():
+                    if uid != my_uid:
+                        c_uid, c_btn = st.columns([3, 1])
+                        c_uid.warning(f"🆔 `{uid}` - **{count}** lançamentos")
+                        if c_btn.button(f"Trazer para Mim", key=f"claim_{uid}"):
+                            # Executar transferência
+                            docs_to_move = db.collection(COLLECTION_NAME).where("user_id", "==", uid).stream()
+                            cnt = 0
+                            for doc in docs_to_move:
+                                doc.reference.update({"user_id": my_uid})
+                                cnt += 1
+                            st.success(f"Transferidos {cnt} registros de {uid} para você!")
+                            get_transactions.clear()
+                            st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao listar IDs: {e}")
 
         st.divider()
         st.markdown("### 🔬 Diagnóstico (Raio-X)")

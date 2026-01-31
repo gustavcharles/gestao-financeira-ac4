@@ -452,6 +452,62 @@ def get_shifted_reference_month(dt, cat, tipo):
     
     return get_month_from_date(dt)
 
+def process_recurring_bills(df):
+    """Verifica e gera contas recorrentes para o mês atual."""
+    if df.empty: return False
+    
+    current_month_str = get_current_month_str()
+    today = date.today()
+    
+    # 1. Identificar mês anterior
+    first_curr = date(today.year, today.month, 1)
+    last_month_date = first_curr - pd.Timedelta(days=1)
+    last_month_str = get_month_from_date(last_month_date)
+    
+    # 2. Pegar recorrentes do mês passado
+    df_last = df[(df['mes_referencia'] == last_month_str) & (df.get('recorrente', False) == True) & (df['tipo'] == 'Despesa')]
+    
+    if df_last.empty: return False
+    
+    # 3. Pegar transações já existentes no mês atual (para evitar duplicação)
+    df_curr = df[df['mes_referencia'] == current_month_str]
+    existing_sigs = set(zip(df_curr['descricao'], df_curr['categoria']))
+    
+    new_generated = 0
+    
+    for idx, row in df_last.iterrows():
+        sig = (row['descricao'], row['categoria'])
+        if sig not in existing_sigs:
+            # Gerar para o mês atual
+            try:
+                # Tentar manter o mesmo dia
+                new_day = row['data'].day
+                # Cuidado com fevereiro (dias 29/30/31)
+                import calendar
+                max_days = calendar.monthrange(today.year, today.month)[1]
+                target_day = min(new_day, max_days)
+                new_date = date(today.year, today.month, target_day)
+                
+                new_data = {
+                    "tipo": "Despesa",
+                    "data": new_date,
+                    "mes_referencia": current_month_str,
+                    "categoria": row['categoria'],
+                    "descricao": row['descricao'],
+                    "valor": row['valor'],
+                    "status": "Pendente",
+                    "recorrente": True # Mantém a recorrência para o próximo
+                }
+                
+                add_transaction(new_data)
+                new_generated += 1
+            except Exception as e:
+                print(f"Erro ao gerar recorrente: {e}")
+                
+    if new_generated > 0:
+        return True
+    return False
+
 def generate_ai_insights(df, month_str):
     """Gera insights automáticos baseados nos dados."""
     if month_str == "Todos" or df.empty:

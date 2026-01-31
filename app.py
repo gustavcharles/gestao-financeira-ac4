@@ -1178,8 +1178,21 @@ mes_atual = get_current_month_str()
 # ==========================================
 if selected == "Dashboard":
     
-    c1, c2 = st.columns([3, 1])
-    c1.markdown(f"### Olá, Gestor AC-4 👋")
+    if "hide_welcome" not in st.session_state:
+        st.session_state["hide_welcome"] = False
+
+    if not st.session_state["hide_welcome"]:
+        c1, c2 = st.columns([3, 1])
+        c1.markdown(f"### Olá, Gestor AC-4 👋")
+        with c2:
+             if st.checkbox("Ocultar", key="chk_welcome"):
+                 st.session_state["hide_welcome"] = True
+                 st.rerun()
+    else:
+        # If hidden, keep columns just for layout spacing if needed, or skip.
+        # Let's just create c1, c2 invisible or skip defining them if they aren't used below.
+        # Checking usage below... c1, c2 seem unused for anything else in this block.
+        pass
     
     # Shortcuts Listener
     st.components.v1.html(
@@ -1489,6 +1502,11 @@ elif selected == "Receitas":
             # Ensure mes_referencia is string
             df_r['ref_year'] = df_r['mes_referencia'].astype(str).apply(extract_year_from_ref)
             unique_years = sorted(df_r[df_r['ref_year'] > 0]['ref_year'].unique(), reverse=True)
+            
+            # DEBUG
+            # with st.expander("🕵️ DEBUG: Years & Data"):
+            #    st.write(f"Unique Years Found: {unique_years}")
+            #    st.write(df_r[['data', 'mes_referencia', 'ref_year', 'descricao']].head(20))
             
             if not unique_years:
                 st.info("Nenhuma transação encontrada com ano de referência válido.")

@@ -2174,7 +2174,7 @@ if is_admin and selected == "Admin":
     st.markdown("## 🛡️ Painel Administrativo")
     st.success(f"Bem-vindo, Administrador **{st.session_state['user_info'].get('email')}**")
     
-    tab1, tab2 = st.tabs(["👥 Usuários", "📊 Estatísticas do Sistema"])
+    tab1, tab2, tab3 = st.tabs(["👥 Usuários", "📊 Estatísticas do Sistema", "🔧 Recuperação de Dados"])
     
     with tab1:
         st.markdown("### Base de Usuários")
@@ -2219,3 +2219,41 @@ if is_admin and selected == "Admin":
 
     with tab2:
         st.info("Estatísticas financeiras globais em breve...")
+
+    with tab3:
+        st.markdown("### 🕵️‍♂️ Resgate de Dados Antigos")
+        st.warning("Use isso se seus lançamentos sumiram após a atualização de Login.")
+        
+        if st.button("🔍 Buscar e Adotar Dados Órfãos", type="primary"):
+            try:
+                # 1. Buscar TUDO (sem filtro de usuario)
+                all_docs = db.collection(COLLECTION_NAME).stream()
+                
+                my_uid = st.session_state['user_info']['localId']
+                recovered_count = 0
+                progr = st.progress(0)
+                
+                # Coletar tasks
+                updates = []
+                for doc in all_docs:
+                    d = doc.to_dict()
+                    # Se NÃO tem user_id, é órfão
+                    if 'user_id' not in d:
+                        updates.append(doc.reference)
+                
+                # Aplicar updates
+                if not updates:
+                    st.info("Nenhum dado órfão encontrado. Tudo parece estar certo!")
+                else:
+                    total = len(updates)
+                    for i, ref in enumerate(updates):
+                        ref.update({"user_id": my_uid})
+                        recovered_count += 1
+                        progr.progress((i + 1) / total)
+                    
+                    st.success(f"Sucesso! {recovered_count} lançamentos antigos foram vinculados à sua conta.")
+                    get_transactions.clear() # Limpar cache para ver os novos dados
+                    st.balloons()
+                    
+            except Exception as e:
+                st.error(f"Erro na migração: {e}")

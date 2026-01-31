@@ -596,13 +596,19 @@ if selected == "Dashboard":
         fig = px.area(daily, x='data', y='valor', title=None)
         fig.update_layout(
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-            xaxis=dict(showgrid=False, tickformat="%d/%m", fixedrange=True), 
-            yaxis=dict(showgrid=True, gridcolor='#F1F5F9', fixedrange=True),
-            margin=dict(l=15, r=15, t=10, b=20), height=200, showlegend=False,
-            font=dict(color=COLOR_TEXT, size=11),
-            autosize=True
+            xaxis=dict(showgrid=False, tickformat="%d/%m", fixedrange=True, title=None), 
+            yaxis=dict(showgrid=True, gridcolor='#E2E8F0', fixedrange=True, title=None, tickprefix="R$ "),
+            margin=dict(l=10, r=10, t=30, b=10), height=250, 
+            showlegend=False, # Single series, title is enough
+            font=dict(color=COLOR_TEXT, size=12),
+            autosize=True,
+            hovermode="x unified"
         )
-        fig.update_traces(line_color=COLOR_PRIMARY, fillcolor="rgba(37, 99, 235, 0.1)")
+        fig.update_traces(
+            line_color=COLOR_PRIMARY, 
+            fillcolor="rgba(37, 99, 235, 0.1)",
+            hovertemplate="<b>%{x|%d/%m}</b><br>R$ %{y:,.2f}<extra></extra>"
+        )
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         st.markdown('</div>', unsafe_allow_html=True)
@@ -668,13 +674,18 @@ elif selected == "Receitas":
         fig_r = px.line(daily_r, x='data', y='valor', line_shape='spline')
         fig_r.update_layout(
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-            xaxis=dict(showgrid=False, tickformat="%d %b", fixedrange=True), 
-            yaxis=dict(showgrid=False, showticklabels=True, fixedrange=True),
-            margin=dict(l=35, r=10, t=10, b=20), height=200,
-            font=dict(color=COLOR_TEXT, size=11),
-            autosize=True
+            xaxis=dict(showgrid=False, tickformat="%d %b", fixedrange=True, title=None), 
+            yaxis=dict(showgrid=True, gridcolor='#E2E8F0', showticklabels=True, fixedrange=True, title=None),
+            margin=dict(l=10, r=10, t=10, b=10), height=220,
+            font=dict(color=COLOR_TEXT, size=12),
+            autosize=True,
+            hovermode="x unified"
         )
-        fig_r.update_traces(line_color=COLOR_PRIMARY, line_width=3) 
+        fig_r.update_traces(
+            line_color=COLOR_SUCCESS, 
+            line_width=3,
+            hovertemplate="<b>%{x|%d/%b}</b><br>R$ %{y:,.2f}<extra></extra>"
+        ) 
         st.plotly_chart(fig_r, use_container_width=True, config={'displayModeBar': False})
     else:
         st.info("Sem receitas no período.")

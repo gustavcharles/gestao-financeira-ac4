@@ -149,15 +149,19 @@ def auth_screen():
                     if not email or not password:
                         st.warning("Preencha todos os campos.")
                     else:
+                        login_success = False
                         try:
                             resp = login_user(email, password)
                             if "error" in resp:
                                 st.error("Falha no login. Verifique suas credenciais.")
                             else:
                                 st.session_state['user_info'] = resp
-                                st.rerun()
-                        except:
-                            st.error("Erro de conexão.")
+                                login_success = True
+                        except Exception as e:
+                            st.error(f"Erro de conexão: {e}")
+                            
+                        if login_success:
+                            st.rerun()
             
             st.markdown("""
                 <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.85rem;">

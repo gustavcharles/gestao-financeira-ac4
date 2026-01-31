@@ -700,6 +700,7 @@ def render_transaction_row(row):
 
 # --- UI LAYOUT ---
 
+
 # Topo: Menu Horizontal
 selected = option_menu(
     menu_title=None,
@@ -713,7 +714,18 @@ selected = option_menu(
     }
 )
 
-df = get_transactions()
+with st.spinner("Carregando seus dados..."):
+    df = get_transactions()
+
+if df.empty:
+    st.info("👋 Bem-vindo! Parece que você ainda não tem transações cadastradas.")
+    st.markdown("""
+    <div style='text-align: center; padding: 30px; background-color: rgba(37, 99, 235, 0.1); border-radius: 12px; margin: 20px 0;'>
+        <h3 style='color: #2563EB;'>Comece Agora!</h3>
+        <p>Vá na aba <b>Novo +</b> e adicione sua primeira receita ou despesa.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
 if 'recorrente' not in df.columns: df['recorrente'] = False # Ensure column exists
 
 # Auto-Run Recurrence Check

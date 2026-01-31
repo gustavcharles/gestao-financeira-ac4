@@ -1372,11 +1372,10 @@ if st.session_state['first_visit']:
                 st.session_state['first_visit'] = False
                 st.rerun()
         with c_chk:
-            # Checkbox para ocultar a saudação inferior
-            if st.checkbox("Ocultar saudação", key="chk_welcome"):
-                st.session_state["hide_welcome"] = True
-            else:
-                st.session_state["hide_welcome"] = False
+            # Checkbox agora fecha o expander
+            if st.checkbox("Não mostrar mais essa aba", key="chk_welcome"):
+                st.session_state['first_visit'] = False
+                st.rerun()
 
 # Topo: Menu Horizontal
 # ADMIN CHECK
@@ -1440,16 +1439,8 @@ mes_atual = get_current_month_str()
 # ==========================================
 if selected == "Dashboard":
     
-    if "hide_welcome" not in st.session_state:
-        st.session_state["hide_welcome"] = False
-
-    if not st.session_state.get("hide_welcome", False):
-        st.markdown(f"### Olá, Gestor AC-4 👋")
-    else:
-        # If hidden, keep columns just for layout spacing if needed, or skip.
-        # Let's just create c1, c2 invisible or skip defining them if they aren't used below.
-        # Checking usage below... c1, c2 seem unused for anything else in this block.
-        pass
+    # Greeting Unconditional
+    st.markdown(f"### Olá, Gestor AC-4 👋")
     
     # Shortcuts Listener
     st.components.v1.html(

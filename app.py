@@ -991,12 +991,16 @@ def generate_advanced_insights(df, mes_sel):
     return insights
 
 def generate_pdf_report(df, month_str):
+    def safe_text(text):
+        if not isinstance(text, str): text = str(text)
+        return text.encode('latin-1', 'replace').decode('latin-1')
+
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
     
     # Title Context
-    pdf.cell(0, 10, txt=f"Periodo: {month_str}", ln=True, align='C')
+    pdf.cell(0, 10, txt=safe_text(f"Periodo: {month_str}"), ln=True, align='C')
     pdf.ln(5)
     
     # Data Prep
@@ -1011,20 +1015,20 @@ def generate_pdf_report(df, month_str):
     
     # 1. Summary
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "1. Resumo Financeiro", 0, 1)
+    pdf.cell(0, 10, safe_text("1. Resumo Financeiro"), 0, 1)
     pdf.set_font("Arial", size=12)
-    pdf.cell(0, 8, f"Receitas: R$ {rec:,.2f}", 0, 1)
-    pdf.cell(0, 8, f"Despesas: R$ {desp:,.2f}", 0, 1)
+    pdf.cell(0, 8, safe_text(f"Receitas: R$ {rec:,.2f}"), 0, 1)
+    pdf.cell(0, 8, safe_text(f"Despesas: R$ {desp:,.2f}"), 0, 1)
     
     # Color logic for balance
     pdf.set_text_color(0, 150, 0) if saldo >= 0 else pdf.set_text_color(200, 0, 0)
-    pdf.cell(0, 8, f"Saldo Liquido: R$ {saldo:,.2f}", 0, 1)
+    pdf.cell(0, 8, safe_text(f"Saldo Liquido: R$ {saldo:,.2f}"), 0, 1)
     pdf.set_text_color(0, 0, 0) # Reset
     pdf.ln(5)
     
     # 2. Insights
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "2. Insights Financeiros", 0, 1)
+    pdf.cell(0, 10, safe_text("2. Insights Financeiros"), 0, 1)
     pdf.set_font("Arial", size=10)
     
     # Generate textual insights
@@ -1033,14 +1037,14 @@ def generate_pdf_report(df, month_str):
         for insight in insights_list:
             # Clean md bold syntax for PDF
             clean_text = insight.replace("**", "").replace("📊", "").replace("💡", "").replace("⚠️", "").strip()
-            pdf.multi_cell(0, 6, f"- {clean_text}")
+            pdf.multi_cell(0, 6, f"- {safe_text(clean_text)}")
     else:
-        pdf.cell(0, 6, "Sem insights gerados para o periodo.", 0, 1)
+        pdf.cell(0, 6, safe_text("Sem insights gerados para o periodo."), 0, 1)
     pdf.ln(5)
     
     # 3. Charts (Matplotlib)
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "3. Grafico: Distribuicao de Despesas", 0, 1)
+    pdf.cell(0, 10, safe_text("3. Grafico: Distribuicao de Despesas"), 0, 1)
     
     if not df_filt.empty and desp > 0:
         df_d = df_filt[df_filt['tipo'] == 'Despesa']
@@ -1049,9 +1053,9 @@ def generate_pdf_report(df, month_str):
             
             # Create Pie Chart
             fig, ax = plt.subplots(figsize=(6, 4))
-            ax.pie(cat_sums, labels=cat_sums.index, autopct='%1.1f%%', startangle=90)
+            ax.pie(cat_sums, labels=[safe_text(l) for l in cat_sums.index], autopct='%1.1f%%', startangle=90)
             ax.axis('equal')
-            plt.title("Distribuicao por Categoria")
+            plt.title(safe_text("Distribuicao por Categoria"))
             
             # Save to temp file (FPDF requires file path in older versions)
             import tempfile
@@ -1071,14 +1075,14 @@ def generate_pdf_report(df, month_str):
                     os.remove(tmp_path)
     else:
         pdf.set_font("Arial", 'I', 11)
-        pdf.cell(0, 10, "Sem dados de despesas.", 0, 1)
+        pdf.cell(0, 10, safe_text("Sem dados de despesas."), 0, 1)
         
     pdf.ln(5)
 
     # 4. Detailed Tables
     def render_table(title, dataframe):
         pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, title, 0, 1)
+        pdf.cell(0, 10, safe_text(title), 0, 1)
         pdf.set_font("Arial", 'B', 9)
         
         # Header
@@ -1086,13 +1090,13 @@ def generate_pdf_report(df, month_str):
         headers = ["Data", "Descricao", "Categoria", "Valor"]
         
         for i in range(4):
-            pdf.cell(col_w[i], 7, headers[i], 1, 0, 'C')
+            pdf.cell(col_w[i], 7, safe_text(headers[i]), 1, 0, 'C')
         pdf.ln()
         
         # Rows
         pdf.set_font("Arial", '', 9)
         if dataframe.empty:
-            pdf.cell(sum(col_w), 7, "Sem registros.", 1, 1, 'C')
+            pdf.cell(sum(col_w), 7, safe_text("Sem registros."), 1, 1, 'C')
         else:
             for _, row in dataframe.iterrows():
                 try:
@@ -1101,10 +1105,10 @@ def generate_pdf_report(df, month_str):
                     cat = str(row.get('categoria', '-'))[:25]
                     val = f"R$ {row.get('valor', 0):,.2f}"
                     
-                    pdf.cell(col_w[0], 7, d_str, 1, 0, 'C')
-                    pdf.cell(col_w[1], 7, desc, 1, 0, 'L')
-                    pdf.cell(col_w[2], 7, cat, 1, 0, 'L')
-                    pdf.cell(col_w[3], 7, val, 1, 0, 'R')
+                    pdf.cell(col_w[0], 7, safe_text(d_str), 1, 0, 'C')
+                    pdf.cell(col_w[1], 7, safe_text(desc), 1, 0, 'L')
+                    pdf.cell(col_w[2], 7, safe_text(cat), 1, 0, 'L')
+                    pdf.cell(col_w[3], 7, safe_text(val), 1, 0, 'R')
                     pdf.ln()
                 except:
                     continue

@@ -111,37 +111,30 @@ def auth_screen():
         }
         
         /* Mobile Layout Fixes - Strong Override */
-        /* Mobile Layout Fixes - Targeted Override */
+        /* Mobile Layout Fixes - Precision Targeting */
         @media only screen and (max-width: 900px) {
-            
-            /* 1. Fix for Login Page Cut-off: Ensure main blocks allow wrapping/stacking */
-            [data-testid="stHorizontalBlock"] {
-                flex-wrap: wrap !important;
+            /* Target ONLY the blocks preceded by our marker class */
+            .mobile-row-fix + [data-testid="stHorizontalBlock"], 
+            .mobile-row-fix + div + [data-testid="stHorizontalBlock"] { /* Sometimes there's an extra div wrapper */
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
                 width: 100% !important;
             }
 
-            /* 2. Target the NESTED button columns specifically to force them to be a ROW */
-            /* Logic: Block (Row) -> Column (Actions) -> Block (Buttons) */
-            [data-testid="stHorizontalBlock"] [data-testid="column"] [data-testid="stHorizontalBlock"] {
-                flex-direction: row !important;
-                flex-wrap: nowrap !important;
-                width: auto !important;
-            }
-            
-            /* 3. Allow columns inside this nested block to shrink */
-            [data-testid="stHorizontalBlock"] [data-testid="column"] [data-testid="stHorizontalBlock"] [data-testid="column"] {
+            .mobile-row-fix + [data-testid="stHorizontalBlock"] [data-testid="column"],
+            .mobile-row-fix + div + [data-testid="stHorizontalBlock"] [data-testid="column"] {
                 min-width: 0 !important;
                 width: auto !important;
                 flex: 1 1 auto !important;
-                padding: 0 2px !important;
+                padding: 0 1px !important;
             }
-
-            /* Compact Buttons */
-            button[kind="secondary"], button[kind="primary"], div[data-testid="baseButton-secondary"], div[data-testid="baseButton-primary"] {
-                padding: 0.2rem 0.2rem !important;
-                min-height: auto !important;
-                height: auto !important;
-                line-height: 1.2 !important;
+            
+            /* Compact Buttons inside these rows */
+            .mobile-row-fix + [data-testid="stHorizontalBlock"] button,
+            .mobile-row-fix + div + [data-testid="stHorizontalBlock"] button {
+                 padding: 0px 4px !important;
+                 min-height: 30px !important;
+                 height: 30px !important;
             }
         }
         </style>
@@ -1435,6 +1428,7 @@ elif selected == "Receitas":
         # Filter Logic
         if "rec_filter_cat" not in st.session_state: st.session_state["rec_filter_cat"] = "All"
         
+        st.markdown('<div class="mobile-row-fix" style="display:none;"></div>', unsafe_allow_html=True)
         k1, k2, k3, k4 = st.columns([1, 1, 1, 2])
         
         if k1.button("All", key="chip_all", use_container_width=True, type="primary" if st.session_state["rec_filter_cat"] == "All" else "secondary"):
@@ -1501,6 +1495,7 @@ elif selected == "Receitas":
                     """, unsafe_allow_html=True)
                     # Ações (Edit + Delete)
                     with c_row2:
+                        st.markdown('<div class="mobile-row-fix" style="display:none;"></div>', unsafe_allow_html=True)
                         c_edit, c_del = st.columns([1, 1], gap="small")
                         
                         # Edit Dialog Button
@@ -1508,7 +1503,7 @@ elif selected == "Receitas":
                              if st.button("✏️", key=f"btn_edit_r_{row['id']}"):
                                  edit_transaction_dialog(row, "receita")
 
-                        # Delete Popover (No Key to fix crash)
+                        # Delete Popover
                         with c_del:
                             with st.popover("🗑️"):
                                 st.write("Confirma?")
@@ -1711,6 +1706,7 @@ elif selected == "Despesas":
                     </div>
                     """, unsafe_allow_html=True)
                 with c_row2:
+                    st.markdown('<div class="mobile-row-fix" style="display:none;"></div>', unsafe_allow_html=True)
                     c_check, c_edit_d, c_del_d = st.columns([1, 1, 1], gap="small")
                     
                     # Despesa Actions

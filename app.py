@@ -1101,12 +1101,46 @@ elif selected == "Despesas":
             nd_ref = get_shifted_reference_month(nd_date, nd_cat, "Despesa")
             st.caption(f"Competência: **{nd_ref}**")
             
+            # Opções de Repetição (Quick Add)
+            nd_is_rec = st.checkbox("Repetir este lançamento?", key="quick_desp_rec")
+            nd_recur_type = "Automático (Mensal)"
+            nd_recur_times = 1
+            
+            if nd_is_rec:
+                nd_recur_type = st.radio("Como repetir?", ["Automático (Recorrente)", "Parcelado / Fixo (Gerar Agora)"], horizontal=True, key="quick_desp_type")
+                if nd_recur_type == "Parcelado / Fixo (Gerar Agora)":
+                    nd_recur_times = st.number_input("Quantas vezes?", min_value=2, max_value=48, value=12, step=1, key="quick_desp_times")
+                    st.caption(f"Serão criados **{nd_recur_times}** lançamentos.")
+
             if st.button("Salvar Despesa", type="primary", use_container_width=True, key="quick_desp_btn"):
-                if add_transaction({
-                    "tipo": "Despesa", "data": nd_date, "mes_referencia": nd_ref,
-                    "categoria": nd_cat, "descricao": sanitize_input(nd_desc), "valor": nd_val, "status": "Pendente"
-                }):
-                     st.session_state["toast_msg"] = f"Despesa adicionada! ({nd_ref})"
+                saved_ok = False
+                
+                if nd_is_rec and nd_recur_type == "Parcelado / Fixo (Gerar Agora)":
+                    # Lote
+                    prog_bar = st.progress(0)
+                    for i in range(nd_recur_times):
+                        f_dt = (pd.to_datetime(nd_date) + pd.DateOffset(months=i)).date()
+                        f_ref = get_shifted_reference_month(f_dt, nd_cat, "Despesa")
+                        add_transaction({
+                            "tipo": "Despesa", "data": f_dt, "mes_referencia": f_ref,
+                            "categoria": nd_cat, "descricao": f"{sanitize_input(nd_desc)} ({i+1}/{nd_recur_times})", 
+                            "valor": nd_val, "status": "Pendente", "recorrente": False
+                        })
+                        prog_bar.progress((i+1)/nd_recur_times)
+                    saved_ok = True
+                    msg = f"{nd_recur_times} despesas geradas!"
+                else:
+                    # Único
+                    if add_transaction({
+                        "tipo": "Despesa", "data": nd_date, "mes_referencia": nd_ref,
+                        "categoria": nd_cat, "descricao": sanitize_input(nd_desc), "valor": nd_val, "status": "Pendente",
+                        "recorrente": nd_is_rec
+                    }):
+                        saved_ok = True
+                        msg = f"Despesa adicionada! ({nd_ref})"
+                
+                if saved_ok:
+                     st.session_state["toast_msg"] = msg
                      st.rerun()
 
     if mes_sel_d != "Todos":

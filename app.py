@@ -655,6 +655,9 @@ def generate_advanced_insights(df, mes_sel):
     if df.empty:
         return []
     
+    # Criar df apenas com despesas para análise
+    df_desp = df[df['tipo'] == 'Despesa']
+
     # --- 1. MAIOR CATEGORIA DE GASTO ---
     if not df_desp.empty:
         cat_grp = df_desp[df_desp['mes_referencia'] == mes_sel].groupby('categoria')['valor'].sum()

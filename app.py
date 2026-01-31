@@ -369,9 +369,19 @@ def update_transaction(doc_id, data):
 
 
 def add_transaction(data):
+    # Validations
+    if data.get('valor', 0) <= 0:
+        st.error("Valor deve ser maior que zero!")
+        return False
+        
+    if not data.get('descricao', '').strip():
+        st.error("Descrição é obrigatória!")
+        return False
+
     if db is None:
         data['id'] = str(uuid.uuid4())
         st.session_state['mock_data'].insert(0, data)
+        get_transactions.clear()
         return True
     else:
         try:
@@ -381,17 +391,11 @@ def add_transaction(data):
                 data['data'] = datetime.combine(data['data'], datetime.min.time())
                 
             db.collection(COLLECTION_NAME).add(data)
+            get_transactions.clear()
             return True
         except Exception as e:
-            st.error(f"Erro ao salvar: {e}")
-            db.collection(COLLECTION_NAME).add(data)
-            return True
-        except Exception as e:
-            st.error(f"Erro ao salvar: {e}")
+            st.error(f"❌ Erro ao salvar: {str(e)}")
             return False
-            
-    get_transactions.clear()
-    return True
 
 @st.dialog("✏️ Editar Transação")
 def edit_transaction_dialog(row, tipo_cat_key):

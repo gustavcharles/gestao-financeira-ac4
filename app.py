@@ -267,6 +267,8 @@ st.markdown(f"""
         .tx-date-box span:nth-child(2) {{ font-size: 1rem !important; }}
         .tx-title {{ font-size: 0.9rem !important; }}
         .tx-amount {{ font-size: 0.9rem !important; }}
+        .plotly-graph-div {{ height: 200px !important; }}
+        .custom-card {{ padding: 15px !important; }}
     }}
     
     /* Hide Streamlit Branding */

@@ -13,6 +13,80 @@ from fpdf import FPDF
 import matplotlib.pyplot as plt
 import io
 import html
+import requests
+
+# --- AUTH & CONFIG ---
+if "firebase_web" in st.secrets:
+    FIREBASE_WEB_API_KEY = st.secrets["firebase_web"]["api_key"]
+else:
+    FIREBASE_WEB_API_KEY = None
+
+def login_user(email, password):
+    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"
+    payload = {"email": email, "password": password, "returnSecureToken": True}
+    res = requests.post(url, json=payload)
+    if res.status_code == 200:
+        return res.json()
+    else:
+        return {"error": res.json()}
+
+def register_user(email, password):
+    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={FIREBASE_WEB_API_KEY}"
+    payload = {"email": email, "password": password, "returnSecureToken": True}
+    res = requests.post(url, json=payload)
+    if res.status_code == 200:
+        return res.json()
+    else:
+        return {"error": res.json()}
+
+def auth_screen():
+    st.markdown("<h2 style='text-align: center;'>🔐 Acesso Restrito</h2>", unsafe_allow_html=True)
+    
+    if not FIREBASE_WEB_API_KEY:
+        st.error("⚠️ Erro de Configuração: API Key não encontrada no secrets.toml")
+        st.info("Adicione [firebase_web] api_key = '...' ao seu arquivo .streamlit/secrets.toml")
+        return
+
+    tab1, tab2 = st.tabs(["Login", "Criar Conta"])
+    
+    with tab1:
+        with st.form("login_form"):
+            email = st.text_input("Email")
+            password = st.text_input("Senha", type="password")
+            submit = st.form_submit_button("Entrar", use_container_width=True, type="primary")
+            
+            if submit:
+                if not email or not password:
+                    st.warning("Preencha todos os campos.")
+                else:
+                    try:
+                        resp = login_user(email, password)
+                        if "error" in resp:
+                            st.error(f"Erro: {resp['error'].get('error', {}).get('message', 'Falha no login')}")
+                        else:
+                            st.session_state['user_info'] = resp
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro de conexão: {e}")
+
+    with tab2:
+        with st.form("register_form"):
+            new_email = st.text_input("Email")
+            new_pass = st.text_input("Senha", type="password")
+            new_pass_conf = st.text_input("Confirmar Senha", type="password")
+            submit_reg = st.form_submit_button("Criar Conta", use_container_width=True)
+            
+            if submit_reg:
+                if new_pass != new_pass_conf:
+                    st.error("Senhas não conferem.")
+                elif len(new_pass) < 6:
+                    st.warning("A senha deve ter pelo menos 6 caracteres.")
+                else:
+                    resp = register_user(new_email, new_pass)
+                    if "error" in resp:
+                         st.error(f"Erro: {resp['error'].get('error', {}).get('message', 'Falha no cadastro')}")
+                    else:
+                        st.success("Conta criada! Tente fazer login.")
 
 # --- FUNÇÃO DE SANITIZAÇÃO ---
 def sanitize_input(text):
@@ -315,7 +389,9 @@ def get_transactions():
         df = pd.DataFrame(data) if data else pd.DataFrame(columns=['id', 'tipo', 'data', 'valor', 'categoria'])
     else:
         try:
-            docs = db.collection(COLLECTION_NAME).stream()
+            # FIX: Filter by User ID
+            user_id = st.session_state['user_info']['localId']
+            docs = db.collection(COLLECTION_NAME).where("user_id", "==", user_id).stream()
             data = []
             for doc in docs:
                 d = doc.to_dict()
@@ -398,7 +474,10 @@ def add_transaction(data):
             # Firestore aceita datetime, mas st.date_input retorna date
             if isinstance(data['data'], date) and not isinstance(data['data'], datetime):
                 data['data'] = datetime.combine(data['data'], datetime.min.time())
-                
+            
+            # FIX: Add User ID
+            data['user_id'] = st.session_state['user_info']['localId']
+            
             db.collection(COLLECTION_NAME).add(data)
             get_transactions.clear()
             return True
@@ -854,6 +933,21 @@ def render_transaction_row(row):
 
 # --- UI LAYOUT ---
 
+
+# --- CHECK AUTH ---
+if 'user_info' not in st.session_state:
+    init_state() # Ensure basic state for theme
+    auth_screen()
+    st.stop()
+else:
+    # Sidebar Logout
+    with st.sidebar:
+        st.write(f"Logado como: {st.session_state['user_info'].get('email')}")
+        if st.button("Sair"):
+            del st.session_state['user_info']
+            st.rerun()
+
+# --- UI LAYOUT ---
 
 # Topo: Menu Horizontal
 selected = option_menu(

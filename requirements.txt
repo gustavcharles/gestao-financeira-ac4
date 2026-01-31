@@ -5,3 +5,4 @@ firebase-admin
 streamlit-option-menu
 fpdf
 matplotlib
+requests

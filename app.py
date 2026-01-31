@@ -1022,9 +1022,25 @@ def generate_pdf_report(df, month_str):
     pdf.set_text_color(0, 0, 0) # Reset
     pdf.ln(5)
     
-    # 2. Charts (Matplotlib)
+    # 2. Insights
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "2. Detalhamento de Despesas", 0, 1)
+    pdf.cell(0, 10, "2. Insights Financeiros", 0, 1)
+    pdf.set_font("Arial", size=10)
+    
+    # Generate textual insights
+    insights_list = generate_advanced_insights(df, month_str)
+    if insights_list:
+        for insight in insights_list:
+            # Clean md bold syntax for PDF
+            clean_text = insight.replace("**", "").replace("📊", "").replace("💡", "").replace("⚠️", "").strip()
+            pdf.multi_cell(0, 6, f"- {clean_text}")
+    else:
+        pdf.cell(0, 6, "Sem insights gerados para o periodo.", 0, 1)
+    pdf.ln(5)
+    
+    # 3. Charts (Matplotlib)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "3. Grafico: Distribuicao de Despesas", 0, 1)
     
     if not df_filt.empty and desp > 0:
         df_d = df_filt[df_filt['tipo'] == 'Despesa']
@@ -1056,6 +1072,51 @@ def generate_pdf_report(df, month_str):
     else:
         pdf.set_font("Arial", 'I', 11)
         pdf.cell(0, 10, "Sem dados de despesas.", 0, 1)
+        
+    pdf.ln(5)
+
+    # 4. Detailed Tables
+    def render_table(title, dataframe):
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, title, 0, 1)
+        pdf.set_font("Arial", 'B', 9)
+        
+        # Header
+        col_w = [30, 80, 40, 30] # Data, Desc, Cat, Valor
+        headers = ["Data", "Descricao", "Categoria", "Valor"]
+        
+        for i in range(4):
+            pdf.cell(col_w[i], 7, headers[i], 1, 0, 'C')
+        pdf.ln()
+        
+        # Rows
+        pdf.set_font("Arial", '', 9)
+        if dataframe.empty:
+            pdf.cell(sum(col_w), 7, "Sem registros.", 1, 1, 'C')
+        else:
+            for _, row in dataframe.iterrows():
+                try:
+                    d_str = row['data'].strftime("%d/%m/%Y") if hasattr(row['data'], 'strftime') else str(row['data'])[:10]
+                    desc = str(row.get('descricao', '-'))[:35]
+                    cat = str(row.get('categoria', '-'))[:25]
+                    val = f"R$ {row.get('valor', 0):,.2f}"
+                    
+                    pdf.cell(col_w[0], 7, d_str, 1, 0, 'C')
+                    pdf.cell(col_w[1], 7, desc, 1, 0, 'L')
+                    pdf.cell(col_w[2], 7, cat, 1, 0, 'L')
+                    pdf.cell(col_w[3], 7, val, 1, 0, 'R')
+                    pdf.ln()
+                except:
+                    continue
+        pdf.ln(5)
+
+    # Table: Receitas
+    df_rec_curr = df_filt[df_filt['tipo'] == 'Receita'].sort_values('data')
+    render_table("4. Detalhamento de Receitas", df_rec_curr)
+    
+    # Table: Despesas
+    df_desp_curr = df_filt[df_filt['tipo'] == 'Despesa'].sort_values('data')
+    render_table("5. Detalhamento de Despesas", df_desp_curr)
         
     return pdf.output(dest='S').encode('latin-1', 'replace')
 

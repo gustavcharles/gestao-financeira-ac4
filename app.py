@@ -239,6 +239,16 @@ st.markdown(f"""
     button[kind="secondary"] p, button[kind="secondary"] div, button[kind="secondary"] span {{
          color: {COLOR_TEXT} !important;
     }}
+
+    /* Estilo Específico para Botões de Popover (Nova Receita/Despesa) */
+    div[data-testid="stPopover"] > button {{
+        background-color: {COLOR_PRIMARY} !important;
+        color: white !important;
+        border: none !important;
+    }}
+    div[data-testid="stPopover"] > button p {{
+        color: white !important;
+    }}
     
     /* Mobile Optimizations */
     @media only screen and (max-width: 600px) {{

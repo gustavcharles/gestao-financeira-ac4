@@ -10,7 +10,6 @@ from firebase_admin import credentials
 from firebase_admin import firestore
 import json
 from fpdf import FPDF
-import matplotlib.pyplot as plt
 import io
 import html
 import requests
@@ -910,6 +909,7 @@ def backup_data(df):
         st.error(f"Erro no backup: {e}")
         return False
 
+@st.cache_data(show_spinner=False)
 def generate_advanced_insights(df, mes_sel):
     insights = []
     
@@ -991,6 +991,8 @@ def generate_advanced_insights(df, mes_sel):
     return insights
 
 def generate_pdf_report(df, month_str):
+    # Lazy Import para performance (diminuir tempo de startup)
+    import matplotlib.pyplot as plt
     def safe_text(text):
         if not isinstance(text, str): text = str(text)
         return text.encode('latin-1', 'ignore').decode('latin-1')

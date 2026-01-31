@@ -1442,8 +1442,8 @@ elif selected == "Receitas":
                 d_month = row['data'].strftime("%b").upper()
                 val_fmt = f"+ ${row['valor']:,.2f}"
                 
-                # Row Layout
-                c_row1, c_row2 = st.columns([5, 1])
+                # Layout Row
+                c_row1, c_row2 = st.columns([3.5, 1.5])
                 with c_row1:
                     st.markdown(f"""
                     <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0; justify-content: space-between; width: 100%;">
@@ -1657,7 +1657,7 @@ elif selected == "Despesas":
                 val_fmt = f"- R$ {row['valor']:,.2f}"
                 
                 # Layout Row
-                c_row1, c_row2 = st.columns([5, 1])
+                c_row1, c_row2 = st.columns([3.5, 1.5])
                 with c_row1:
                     st.markdown(f"""
                     <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0;">

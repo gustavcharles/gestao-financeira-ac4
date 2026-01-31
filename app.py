@@ -691,8 +691,8 @@ def process_recurring_bills(df):
     last_month_date = first_curr - pd.Timedelta(days=1)
     last_month_str = get_month_from_date(last_month_date)
     
-    # 2. Pegar recorrentes do mês passado
-    df_last = df[(df['mes_referencia'] == last_month_str) & (df.get('recorrente', False) == True) & (df['tipo'] == 'Despesa')]
+    # 2. Pegar recorrentes do mês passado (Receitas E Despesas)
+    df_last = df[(df['mes_referencia'] == last_month_str) & (df.get('recorrente', False) == True)]
     
     if df_last.empty: return False
     
@@ -716,7 +716,7 @@ def process_recurring_bills(df):
                 new_date = date(today.year, today.month, target_day)
                 
                 new_data = {
-                    "tipo": "Despesa",
+                    "tipo": row['tipo'],
                     "data": new_date,
                     "mes_referencia": current_month_str,
                     "categoria": row['categoria'],

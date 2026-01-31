@@ -1422,7 +1422,7 @@ elif selected == "Receitas":
         
         # Sort Control Receita
         with c_filt_r:
-            sort_r = st.radio("Ord.", ["⬇️ Recentes", "⬆️ Antigas"], horizontal=True, label_visibility="collapsed", key="sort_rec")
+            sort_r = st.radio("Ord.", ["⬆️ Antigas", "⬇️ Recentes"], horizontal=True, label_visibility="collapsed", key="sort_rec")
         
         # Filter Logic
         if "rec_filter_cat" not in st.session_state: st.session_state["rec_filter_cat"] = "All"
@@ -1468,7 +1468,7 @@ elif selected == "Receitas":
             grouped = df_display.groupby('month_key_sort', sort=False)
             
             for month_name, group_df in grouped:
-                with st.expander(f"📅 {month_name.upper()}", expanded=True):
+                with st.expander(f"📅 {month_name.upper()}", expanded=False):
                     for idx, row in group_df.iterrows():
                         d_day = row['data'].strftime("%d")
                         d_month = row['data'].strftime("%b").upper()
@@ -1663,7 +1663,7 @@ elif selected == "Despesas":
         
         # Sort Control Despesa
         with c_filter:
-            sort_d = st.radio("Ord.", ["⬇️ Recentes", "⬆️ Antigas"], horizontal=True, label_visibility="collapsed", key="sort_desp") 
+            sort_d = st.radio("Ord.", ["⬆️ Antigas", "⬇️ Recentes"], horizontal=True, label_visibility="collapsed", key="sort_desp") 
 
         st.markdown('<div class="custom-card" style="padding: 10px 20px;">', unsafe_allow_html=True)
         if not df_d.empty:
@@ -1686,7 +1686,7 @@ elif selected == "Despesas":
             grouped_d = df_display_d.groupby('month_key_sort', sort=False)
             
             for month_name, group_df in grouped_d:
-                with st.expander(f"📅 {month_name.upper()}", expanded=True):
+                with st.expander(f"📅 {month_name.upper()}", expanded=False):
                     for idx, row in group_df.iterrows():
                         d_day = row['data'].strftime("%d")
                         d_month = row['data'].strftime("%b").upper()

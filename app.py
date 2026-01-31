@@ -111,37 +111,37 @@ def auth_screen():
         }
         
         /* Mobile Layout Fixes - Strong Override */
-        /* Mobile Layout Fixes - Aggressive Override */
+        /* Mobile Layout Fixes - Targeted Override */
         @media only screen and (max-width: 900px) {
-            /* Force ALL horizontal blocks (columns) to stay horizontal (row) */
+            
+            /* 1. Fix for Login Page Cut-off: Ensure main blocks allow wrapping/stacking */
             [data-testid="stHorizontalBlock"] {
-                flex-direction: row !important;
-                flex-wrap: nowrap !important;
-                gap: 2px !important; /* Tiny gap to fit */
+                flex-wrap: wrap !important;
                 width: 100% !important;
             }
-            
-            /* Allow columns to shrink to miniscule widths if needed */
-            [data-testid="column"] {
-                flex: 1 1 auto !important; 
-                min-width: 0 !important;
+
+            /* 2. Target the NESTED button columns specifically to force them to be a ROW */
+            /* Logic: Block (Row) -> Column (Actions) -> Block (Buttons) */
+            [data-testid="stHorizontalBlock"] [data-testid="column"] [data-testid="stHorizontalBlock"] {
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
                 width: auto !important;
-                padding: 0 2px !important; /* Reduce padding to save space */
             }
             
+            /* 3. Allow columns inside this nested block to shrink */
+            [data-testid="stHorizontalBlock"] [data-testid="column"] [data-testid="stHorizontalBlock"] [data-testid="column"] {
+                min-width: 0 !important;
+                width: auto !important;
+                flex: 1 1 auto !important;
+                padding: 0 2px !important;
+            }
+
             /* Compact Buttons */
             button[kind="secondary"], button[kind="primary"], div[data-testid="baseButton-secondary"], div[data-testid="baseButton-primary"] {
-                padding: 0.2rem 0.2rem !important; /* Super compact */
+                padding: 0.2rem 0.2rem !important;
                 min-height: auto !important;
                 height: auto !important;
                 line-height: 1.2 !important;
-            }
-            
-            /* Hide the text in buttons if they have icons? No, just keep them small */
-            
-            /* Fix specific to the nested action columns to ensure they don't break */
-            div[data-testid="stHorizontalBlock"] > div[data-testid="column"] > div[data-testid="stHorizontalBlock"] {
-                 flex-direction: row !important;
             }
         }
         </style>

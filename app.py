@@ -572,7 +572,7 @@ def get_transactions():
     try:
         if not df.empty:
             if 'data' in df.columns:
-                df['data'] = pd.to_datetime(df['data']).dt.date
+                df['data'] = pd.to_datetime(df['data'])
             
             # Ensure 'valor' is numeric to prevent sum issues
             if 'valor' in df.columns:
@@ -1396,13 +1396,6 @@ elif selected == "Receitas":
         df_r = df[df['tipo'] == 'Receita']
     
     total_r = df_r['valor'].sum()
-    
-    # DEBUG: Show content of df_r to identify sum mismatch
-    with st.expander("🕵️ DEBUG: Revenue Data"):
-        st.write(f"Total Calculated: {total_r}")
-        st.write("Dataframe head:", df_r[['data', 'mes_referencia', 'descricao', 'valor', 'tipo']].head(10))
-        st.write("Dtypes:", df_r.dtypes)
-
 
     st.markdown("##### Tendência diária de Receitas")
     st.markdown('<div class="custom-card">', unsafe_allow_html=True)

@@ -649,6 +649,32 @@ def backup_data(df):
         st.error(f"Erro no backup: {e}")
         return False
 
+def generate_advanced_insights(df, mes_sel):
+    insights = []
+    
+    if df.empty:
+        return []
+    
+    # Padrões de gastos
+    df_desp = df[df['tipo'] == 'Despesa']
+    if not df_desp.empty:
+        day_of_week = df_desp['data'].dt.dayofweek
+        if not day_of_week.empty and day_of_week.mode()[0] in [5, 6]:  # Fim de semana
+            insights.append("💡 **Dica:** Você tende a gastar mais nos fins de semana! Que tal planejar atividades gratuitas?")
+    
+    # Economia potencial
+    if 'mes_referencia' in df_desp.columns:
+        media_mes = df_desp.groupby('mes_referencia')['valor'].sum().mean()
+        mes_atual_desp = df_desp[df_desp['mes_referencia'] == mes_sel]['valor'].sum()
+        
+        # Só mostra se economia for significativa (> R$ 50 e < 90% da média)
+        if media_mes > 0 and mes_atual_desp < media_mes * 0.9:
+            economia = media_mes - mes_atual_desp
+            if economia > 50:
+                 insights.append(f"🎉 **Parabéns!** Você economizou **R$ {economia:.2f}** em relação à sua média mensal!")
+    
+    return insights
+
 def generate_pdf_report(df, month_str):
     pdf = PDF()
     pdf.add_page()
@@ -859,7 +885,16 @@ if selected == "Dashboard":
     rec = df_view[df_view['tipo']=='Receita']['valor'].sum()
     desp = df_view[df_view['tipo']=='Despesa']['valor'].sum()
     saldo = rec - desp
-    
+    st.metric("Saldo do Mês", f"R$ {saldo:.2f}", delta=None)
+
+    # INSIGHTS AVANÇADOS
+    insights = generate_advanced_insights(df, mes_sel)
+    if insights:
+        st.markdown("### 🧠 Insights Financeiros")
+        for insight in insights:
+            st.info(insight)
+            
+    # GRÁFICOS
     c1, c2 = st.columns(2)
     with c1: st.markdown(card_metric("Receita Total", f"R$ {rec:,.2f}", "12% vs mês ant.", "pos"), unsafe_allow_html=True)
     with c2: st.markdown(card_metric("Despesas", f"R$ {desp:,.2f}", "5% vs mês ant.", "neg"), unsafe_allow_html=True)

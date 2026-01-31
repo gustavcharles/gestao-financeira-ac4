@@ -43,6 +43,34 @@ def register_user(email, password):
     else:
         return {"error": res.json()}
 
+# --- ADMIN FUNCTIONS ---
+def get_all_users():
+    """Retorna lista de usuários do Firebase Auth (Apenas Admin)"""
+    try:
+        from firebase_admin import auth
+        page = auth.list_users()
+        users = []
+        for user in page.iterate_all():
+             users.append({
+                 "uid": user.uid,
+                 "email": user.email,
+                 "disabled": user.disabled,
+                 "last_sign_in": datetime.fromtimestamp(user.user_metadata.last_sign_in_timestamp / 1000) if user.user_metadata.last_sign_in_timestamp else None,
+                 "created_at": datetime.fromtimestamp(user.user_metadata.creation_timestamp / 1000) if user.user_metadata.creation_timestamp else None
+             })
+        return users
+    except Exception as e:
+        return []
+
+def toggle_user_active(uid, current_status):
+    """Ativa/Desativa usuário"""
+    try:
+        from firebase_admin import auth
+        auth.update_user(uid, disabled=not current_status)
+        return True
+    except:
+        return False
+
 def auth_screen():
     # --- CUSTOM LOGIN CSS ---
     st.markdown("""
@@ -1234,10 +1262,19 @@ if st.session_state['first_visit']:
                 st.session_state["hide_welcome"] = False
 
 # Topo: Menu Horizontal
+# ADMIN CHECK
+is_admin = st.session_state['user_info'].get('email') == 'gustav.charles@gmail.com'
+menu_opts = ["Dashboard", "Receitas", "Despesas", "Config", "Novo +"]
+menu_icons = ["grid-fill", "graph-up-arrow", "cart-x", "gear", "plus-circle-fill"]
+
+if is_admin:
+    menu_opts.append("Admin")
+    menu_icons.append("shield-lock-fill")
+
 selected = option_menu(
     menu_title=None,
-    options=["Dashboard", "Receitas", "Despesas", "Config", "Novo +"],
-    icons=["grid-fill", "graph-up-arrow", "cart-x", "gear", "plus-circle-fill"],
+    options=menu_opts,
+    icons=menu_icons,
     orientation="horizontal",
     styles={
         "container": {"background-color": "transparent", "padding": "0"},
@@ -2129,3 +2166,56 @@ elif selected == "Config":
                 st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+# ==========================================
+# ABA 6: ADMIN (SUPER USER)
+# ==========================================
+if is_admin and selected == "Admin":
+    st.markdown("## 🛡️ Painel Administrativo")
+    st.success(f"Bem-vindo, Administrador **{st.session_state['user_info'].get('email')}**")
+    
+    tab1, tab2 = st.tabs(["👥 Usuários", "📊 Estatísticas do Sistema"])
+    
+    with tab1:
+        st.markdown("### Base de Usuários")
+        if st.button("🔄 Atualizar Lista"):
+            st.rerun()
+            
+        users = get_all_users()
+        
+        if not users:
+            st.warning("Nenhum usuário encontrado ou erro de permissão (Admin SDK).")
+        else:
+            # Metrics
+            total_users = len(users)
+            active_users = len([u for u in users if not u['disabled']])
+            
+            c1, c2 = st.columns(2)
+            c1.metric("Total de Cadastros", total_users)
+            c2.metric("Ativos", active_users, delta=total_users-active_users, delta_color="inverse")
+            
+            st.markdown("---")
+            
+            # List
+            for user in users:
+                with st.expander(f"{'🟢' if not user['disabled'] else '🔴'} {user['email']}"):
+                    c_info, c_action = st.columns([3, 1])
+                    
+                    with c_info:
+                        st.write(f"**UID:** `{user['uid']}`")
+                        st.write(f"**Criado em:** {user['created_at']}")
+                        st.write(f"**Último Login:** {user['last_sign_in']}")
+                    
+                    with c_action:
+                        status_btn = "Bloquear" if not user['disabled'] else "Desbloquear"
+                        btn_type = "primary" if not user['disabled'] else "secondary"
+                        
+                        if st.button(f"{status_btn}", key=f"btn_{user['uid']}", type=btn_type):
+                            if toggle_user_active(user['uid'], user['disabled']):
+                                st.success(f"Status alterado com sucesso!")
+                                st.rerun()
+                            else:
+                                st.error("Erro ao alterar status.")
+
+    with tab2:
+        st.info("Estatísticas financeiras globais em breve...")

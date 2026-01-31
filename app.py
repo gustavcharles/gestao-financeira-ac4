@@ -117,6 +117,13 @@ MAPA_MESES = {
     "Setembro": 9, "Outubro": 10, "Novembro": 11, "Dezembro": 12
 }
 
+TEMAS = {
+    "Azul Padrão": {"PRIMARY": "#3B82F6", "SUCCESS": "#10B981", "DANGER": "#EF4444"},
+    "Verde Militar": {"PRIMARY": "#2F855A", "SUCCESS": "#48BB78", "DANGER": "#E53E3E"},
+    "Roxo Noturno": {"PRIMARY": "#805AD5", "SUCCESS": "#9F7AEA", "DANGER": "#F56565"},
+    "Laranja Outono": {"PRIMARY": "#DD6B20", "SUCCESS": "#38A169", "DANGER": "#C53030"}
+}
+
 # --- STATE & DB (Moved up for Color Logic) ---
 def init_state():
     if 'mock_data' not in st.session_state:
@@ -139,24 +146,29 @@ def init_state():
         st.session_state['limit_rec'] = 10
     if 'limit_desp' not in st.session_state:
         st.session_state['limit_desp'] = 10
+        
+    if 'theme_choice' not in st.session_state:
+        st.session_state['theme_choice'] = "Azul Padrão"
 
 init_state()
 
 # Cores do Design (Dinâmicas)
+theme = TEMAS.get(st.session_state.get('theme_choice', "Azul Padrão"), TEMAS["Azul Padrão"])
+
 if st.session_state['dark_mode']:
     COLOR_BG = "#0F172A"
-    COLOR_PRIMARY = "#3B82F6"
-    COLOR_SUCCESS = "#10B981"
-    COLOR_DANGER = "#EF4444"
+    COLOR_PRIMARY = theme["PRIMARY"]
+    COLOR_SUCCESS = theme["SUCCESS"]
+    COLOR_DANGER = theme["DANGER"]
     COLOR_TEXT = "#FFFFFF"
     COLOR_TEXT_LIGHT = "#CBD5E1"
     COLOR_CARD_BG = "#1E293B"
     COLOR_BORDER = "#334155"
 else:
     COLOR_BG = "#F8FAFC"
-    COLOR_PRIMARY = "#2563EB"
-    COLOR_SUCCESS = "#10B981"
-    COLOR_DANGER = "#EF4444"
+    COLOR_PRIMARY = theme["PRIMARY"]
+    COLOR_SUCCESS = theme["SUCCESS"]
+    COLOR_DANGER = theme["DANGER"]
     COLOR_TEXT = "#1E293B"
     COLOR_TEXT_LIGHT = "#64748B"
     COLOR_CARD_BG = "#FFFFFF"
@@ -952,6 +964,22 @@ else:
 
 # --- UI LAYOUT ---
 
+# --- ONBOARDING (WELCOME MESSAGE) ---
+if 'first_visit' not in st.session_state:
+    st.session_state['first_visit'] = True
+    
+if st.session_state['first_visit']:
+    with st.expander("👋 Bem-vindo ao Gestão AC-4!", expanded=True):
+        st.markdown("""
+        **Primeiros Passos:**
+        1. Adicione sua primeira receita
+        2. Configure categorias personalizadas
+        3. Explore o dashboard
+        """)
+        if st.button("Entendi!"):
+            st.session_state['first_visit'] = False
+            st.rerun()
+
 # Topo: Menu Horizontal
 selected = option_menu(
     menu_title=None,
@@ -1632,11 +1660,22 @@ elif selected == "Config":
     st.markdown("### ⚙️ Ajustes")
     st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     
-    # Dark Mode Toggle
-    dm = st.toggle("Modo Escuro", value=st.session_state['dark_mode'])
-    if dm != st.session_state['dark_mode']:
-        st.session_state['dark_mode'] = dm
-        st.rerun()
+    # Theme Selector
+    st.markdown("##### Personalização")
+    c_theme, c_dark = st.columns([2, 1])
+    
+    with c_theme:
+        sel_theme = st.selectbox("Tema Visual", list(TEMAS.keys()), index=list(TEMAS.keys()).index(st.session_state['theme_choice']))
+        if sel_theme != st.session_state['theme_choice']:
+            st.session_state['theme_choice'] = sel_theme
+            st.rerun()
+            
+    with c_dark:
+        # Dark Mode Toggle
+        dm = st.toggle("Modo Escuro", value=st.session_state['dark_mode'])
+        if dm != st.session_state['dark_mode']:
+            st.session_state['dark_mode'] = dm
+            st.rerun()
         
     st.toggle("Notificações", value=True)
     st.divider()

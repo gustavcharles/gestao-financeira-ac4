@@ -1221,9 +1221,17 @@ if st.session_state['first_visit']:
         2. Configure categorias personalizadas
         3. Explore o dashboard
         """)
-        if st.button("Entendi!"):
-            st.session_state['first_visit'] = False
-            st.rerun()
+        c_btn, c_chk = st.columns([1, 4])
+        with c_btn:
+            if st.button("Entendi!"):
+                st.session_state['first_visit'] = False
+                st.rerun()
+        with c_chk:
+            # Checkbox para ocultar a saudação inferior
+            if st.checkbox("Ocultar saudação", key="chk_welcome"):
+                st.session_state["hide_welcome"] = True
+            else:
+                st.session_state["hide_welcome"] = False
 
 # Topo: Menu Horizontal
 selected = option_menu(
@@ -1271,13 +1279,8 @@ if selected == "Dashboard":
     if "hide_welcome" not in st.session_state:
         st.session_state["hide_welcome"] = False
 
-    if not st.session_state["hide_welcome"]:
-        c1, c2 = st.columns([3, 1])
-        c1.markdown(f"### Olá, Gestor AC-4 👋")
-        with c2:
-             if st.checkbox("Ocultar", key="chk_welcome"):
-                 st.session_state["hide_welcome"] = True
-                 st.rerun()
+    if not st.session_state.get("hide_welcome", False):
+        st.markdown(f"### Olá, Gestor AC-4 👋")
     else:
         # If hidden, keep columns just for layout spacing if needed, or skip.
         # Let's just create c1, c2 invisible or skip defining them if they aren't used below.

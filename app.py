@@ -665,9 +665,7 @@ def get_shifted_reference_month(dt, cat, tipo):
     """Calcula o mês de referência com base nas regras de negócio (Salário e AC-4)."""
     shift = 0
     if tipo == "Receita":
-        if cat == "Salário":
-            shift = 1 # Salário Reference -> Pays Next Month
-        elif cat == "AC-4":
+        if cat == "AC-4":
             shift = 2 # Work Month -> Pays Month + 2
     
     if shift > 0:

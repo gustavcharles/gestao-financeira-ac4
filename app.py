@@ -1472,73 +1472,115 @@ elif selected == "Receitas":
             else:
                 df_r = df_r.sort_values(by="data", ascending=False)
                 
-            # Prepare for Expander View
-            df_display = df_r.head(st.session_state['limit_rec']).copy()
-            df_display['month_key_sort'] = df_display['data'].apply(lambda x: get_month_from_date(x))
+            # Extract Years from mes_referencia for Tabs
+            # mes_referencia format assumption: "Month Name YYYY" (e.g., "Janeiro 2026")
+            # We need to parse valid years.
             
-            # Using groupby while preserving order (assuming sorted DF)
-            # sort=False ensures we respect the "Antigas/Recentes" order for the months themselves
-            grouped = df_display.groupby('month_key_sort', sort=False)
+            def extract_year_from_ref(ref_str):
+                try:
+                    return int(ref_str.split()[-1])
+                except:
+                    return 0
+
+            # Get unique years from the filtered dataframe (or full df_r if needed, but filtered is better for UX context if filters applied)
+            # However, for History, usually we want to see all available years unless searched.
+            # Let's use df_r (which already has category filters applied)
             
-            for month_name, group_df in grouped:
-                with st.expander(f"📅 {month_name.upper()}", expanded=False):
-                    for idx, row in group_df.iterrows():
-                        d_day = row['data'].strftime("%d")
-                        d_month = row['data'].strftime("%b").upper()
-                        val_fmt = f"+ ${row['valor']:,.2f}"
+            # Ensure mes_referencia is string
+            df_r['ref_year'] = df_r['mes_referencia'].astype(str).apply(extract_year_from_ref)
+            unique_years = sorted(df_r[df_r['ref_year'] > 0]['ref_year'].unique(), reverse=True)
+            
+            if not unique_years:
+                st.info("Nenhuma transação encontrada com ano de referência válido.")
+            else:
+                tabs = st.tabs([str(y) for y in unique_years])
+                
+                for i, year in enumerate(unique_years):
+                    with tabs[i]:
+                        # Filter for this year
+                        df_year = df_r[df_r['ref_year'] == year].copy()
                         
-                        # Layout Row
-                        c_row1, c_row2 = st.columns([3.5, 1.5])
-                        with c_row1:
-                            st.markdown(f"""
-                            <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0; justify-content: space-between; width: 100%;">
-                                <div style="display: flex; align-items: center; gap: 15px;">
-                                    <div style="background: #EFF6FF; color: {COLOR_PRIMARY}; width: 50px; height: 50px; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;">
-                                         <span style="font-size: 0.65rem; color: #60A5FA;">{d_month}</span>
-                                         <span style="font-size: 1.1rem; line-height: 1;">{d_day}</span>
-                                    </div>
-                                    <div>
-                                        <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
-                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                             <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
+                        # Prepare for Expander View - Group by REFERENCE MONTH now!
+                        # We need to sort by Reference Month properly (not just alphabetically)
+                        # Helper to map month names to numbers for sorting
+                        map_inv = {v: k for k, v in MAPA_MESES.items()} # {1: 'Janeiro', ...} -> val is name
+                        map_name_to_num = {v: k for k, v in MAPA_MESES.items()} # Wait, MAPA_MESES is {1: 'Janeiro'}? No, let's assume MAPA_MESES structure.
+                        # Actually standard app.py usually has MAPA_MESES = {1: 'Janeiro' ...}
+                        # We need {'Janeiro': 1, ...}
+                        
+                        def get_month_num(ref_s):
+                            try:
+                                m_name = " ".join(ref_s.split()[:-1]) # "Janeiro" from "Janeiro 2026"
+                                return map_name_to_num.get(m_name, 0)
+                            except:
+                                return 0
+                                
+                        df_year['month_num'] = df_year['mes_referencia'].apply(get_month_num)
+                        
+                        # Apply User Sort preference
+                        if sort_r == "⬆️ Antigas":
+                            df_year = df_year.sort_values(by=['month_num', 'data'], ascending=[True, True])
+                        else:
+                            df_year = df_year.sort_values(by=['month_num', 'data'], ascending=[False, False])
+
+                        # Group by Reference Month
+                        # Note: dataframe is already sorted by month_num, so groupby(sort=False) keeps that order.
+                        grouped = df_year.groupby('mes_referencia', sort=False)
+                        
+                        for month_name, group_df in grouped:
+                            with st.expander(f"📅 {month_name.upper()}", expanded=False):
+                                for idx, row in group_df.iterrows():
+                                    d_day = row['data'].strftime("%d")
+                                    d_month = row['data'].strftime("%b").upper()
+                                    val_fmt = f"+ ${row['valor']:,.2f}"
+                                    
+                                    # Layout Row
+                                    c_row1, c_row2 = st.columns([3.5, 1.5])
+                                    with c_row1:
+                                        st.markdown(f"""
+                                        <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0; justify-content: space-between; width: 100%;">
+                                            <div style="display: flex; align-items: center; gap: 15px;">
+                                                <div style="background: #EFF6FF; color: {COLOR_PRIMARY}; width: 50px; height: 50px; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;">
+                                                     <span style="font-size: 0.65rem; color: #60A5FA;">{d_month}</span>
+                                                     <span style="font-size: 1.1rem; line-height: 1;">{d_day}</span>
+                                                </div>
+                                                <div>
+                                                    <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
+                                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                                         <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
+                                                         <span style="background: #F1F5F9; color: #64748B; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem;">Ref: {row['mes_referencia']}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div style="font-weight: 700; color: {COLOR_SUCCESS}; font-size: 1rem;">
+                                                {val_fmt}
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
-                                <div style="font-weight: 700; color: {COLOR_SUCCESS}; font-size: 1rem;">
-                                    {val_fmt}
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        # Ações (Edit + Delete)
-                        with c_row2:
-                            st.markdown('<div class="mobile-row-fix" style="display:none;"></div>', unsafe_allow_html=True)
-                            c_edit, c_del = st.columns([1, 1], gap="small")
-                            
-                            # Edit Dialog Button
-                            with c_edit:
-                                 if st.button("✏️", key=f"btn_edit_r_{row['id']}"):
-                                     edit_transaction_dialog(row, "receita")
-    
-                            # Delete Popover
-                            with c_del:
-                                with st.popover("🗑️"):
-                                    st.write("Confirma?")
-                                    if st.button("Sim", key=f"del_rec_{row['id']}"):
-                                        if delete_transaction(row['id']):
-                                            st.session_state["toast_msg"] = f"Receita de R$ {row['valor']:.2f} removida."
-                                            st.rerun()
-    
-                        st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
-
-            if len(df_r) > st.session_state['limit_rec']:
-                if st.button("+ Carregar mais transações", key="load_more_rec", type="tertiary"):
-                    st.session_state['limit_rec'] += 10
-                    st.rerun()
-
-        else:
-            st.write("No transactions.")
-        st.markdown('</div>', unsafe_allow_html=True)
+                                        """, unsafe_allow_html=True)
+                                    
+                                    # Ações (Edit + Delete)
+                                    with c_row2:
+                                        st.markdown('<div class="mobile-row-fix" style="display:none;"></div>', unsafe_allow_html=True)
+                                        c_edit, c_del = st.columns([1, 1], gap="small")
+                                        
+                                        # Edit Dialog Button
+                                        with c_edit:
+                                             if st.button("✏️", key=f"btn_edit_r_{row['id']}"):
+                                                 edit_transaction_dialog(row, "receita")
+                
+                                        # Delete Popover
+                                        with c_del:
+                                            with st.popover("🗑️"):
+                                                st.write("Confirma?")
+                                                if st.button("Sim", key=f"del_rec_{row['id']}"):
+                                                    if delete_transaction(row['id']):
+                                                        st.session_state["toast_msg"] = f"Receita de R$ {row['valor']:.2f} removida."
+                                                        st.rerun()
+                
+                                    st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
+             
+            # Pagination Removed as requested
+            st.markdown('</div>', unsafe_allow_html=True)
     
     # Floating button removed
 
@@ -1692,70 +1734,103 @@ elif selected == "Despesas":
             else:
                 df_d = df_d.sort_values(by="data", ascending=False)
                 
-            # Prepare for Expander View
-            df_display_d = df_d.head(st.session_state['limit_desp']).copy()
-            df_display_d['month_key_sort'] = df_display_d['data'].apply(lambda x: get_month_from_date(x))
-            
-            grouped_d = df_display_d.groupby('month_key_sort', sort=False)
-            
-            for month_name, group_df in grouped_d:
-                with st.expander(f"📅 {month_name.upper()}", expanded=False):
-                    for idx, row in group_df.iterrows():
-                        d_day = row['data'].strftime("%d")
-                        d_month = row['data'].strftime("%b").upper()
-                        val_fmt = f"- R$ {row['valor']:,.2f}"
-                        
-                        # Layout Row
-                        c_row1, c_row2 = st.columns([3.5, 1.5])
-                        with c_row1:
-                            st.markdown(f"""
-                            <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0;">
-                                <div style="background: #FFF1F2; color: {COLOR_DANGER}; width: 50px; height: 50px; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;">
-                                        <span style="font-size: 0.65rem; color: #FDA4AF;">{d_month}</span>
-                                        <span style="font-size: 1.1rem; line-height: 1;">{d_day}</span>
-                                </div>
-                                <div>
-                                    <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                            <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
-                                            <span style="background: {'#DEF7EC' if row.get('status')=='Pago' else '#FFFBEB'}; color: {'#03543F' if row.get('status')=='Pago' else '#92400E'}; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row.get('status','Pendente')}</span>
-                                            <span style="color: {COLOR_DANGER}; font-size: 0.85rem; font-weight: 700;">{val_fmt}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        with c_row2:
-                            st.markdown('<div class="mobile-row-fix" style="display:none;"></div>', unsafe_allow_html=True)
-                            c_check, c_edit_d, c_del_d = st.columns([1, 1, 1], gap="small")
-                            
-                            # Despesa Actions
-                            with c_check:
-                                if row.get('status') != 'Pago':
-                                     if st.button("✅", key=f"pay_{row['id']}", help="Marcar como Pago"):
-                                         if update_transaction(row['id'], {"status": "Pago"}):
-                                             st.session_state["toast_msg"] = "Conta paga! 💸"
-                                             st.rerun()
-        
-                            # Edit Dialog Despesa
-                            with c_edit_d:
-                                 if st.button("✏️", key=f"btn_edit_d_{row['id']}"):
-                                     edit_transaction_dialog(row, "despesa")
-        
-                            with c_del_d:
-                                with st.popover("🗑️"):
-                                    st.write("Confirma?")
-                                    if st.button("Sim", key=f"del_desp_{row['id']}"):
-                                        if delete_transaction(row['id']):
-                                            st.session_state["toast_msg"] = f"Despesa de R$ {row['valor']:.2f} removida."
-                                            st.rerun()
-        
-                        st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
+            # Extract Years from mes_referencia for Tabs
+            def extract_year_from_ref_d(ref_str):
+                try:
+                    return int(ref_str.split()[-1])
+                except:
+                    return 0
 
-            if len(df_d) > st.session_state['limit_desp']:
-                if st.button("+ Carregar mais transações", key="load_more_desp", type="tertiary"):
-                    st.session_state['limit_desp'] += 10
-                    st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+            df_d['ref_year'] = df_d['mes_referencia'].astype(str).apply(extract_year_from_ref_d)
+            unique_years_d = sorted(df_d[df_d['ref_year'] > 0]['ref_year'].unique(), reverse=True)
+            
+            if not unique_years_d:
+                st.info("Nenhuma despesa encontrada com ano de referência válido.")
+            else:
+                tabs_d = st.tabs([str(y) for y in unique_years_d])
+                
+                for i, year in enumerate(unique_years_d):
+                    with tabs_d[i]:
+                        # Filter for this year
+                        df_year_d = df_d[df_d['ref_year'] == year].copy()
+                        
+                        # Prepare for Expander View - Group by REFERENCE MONTH now!
+                        map_name_to_num = {v: k for k, v in MAPA_MESES.items()}
+                        
+                        def get_month_num_d(ref_s):
+                            try:
+                                m_name = " ".join(ref_s.split()[:-1])
+                                return map_name_to_num.get(m_name, 0)
+                            except:
+                                return 0
+                                
+                        df_year_d['month_num'] = df_year_d['mes_referencia'].apply(get_month_num_d)
+                        
+                        # Apply User Sort
+                        if sort_d == "⬆️ Antigas":
+                            df_year_d = df_year_d.sort_values(by=['month_num', 'data'], ascending=[True, True])
+                        else:
+                            df_year_d = df_year_d.sort_values(by=['month_num', 'data'], ascending=[False, False])
+
+                        # Group by Reference Month
+                        grouped_d = df_year_d.groupby('mes_referencia', sort=False)
+                        
+                        for month_name, group_df in grouped_d:
+                            with st.expander(f"📅 {month_name.upper()}", expanded=False):
+                                for idx, row in group_df.iterrows():
+                                    d_day = row['data'].strftime("%d")
+                                    d_month = row['data'].strftime("%b").upper()
+                                    val_fmt = f"- R$ {row['valor']:,.2f}"
+                                    
+                                    # Layout Row
+                                    c_row1, c_row2 = st.columns([3.5, 1.5])
+                                    with c_row1:
+                                        st.markdown(f"""
+                                        <div style="display: flex; align-items: center; gap: 15px; padding: 5px 0;">
+                                            <div style="background: #FFF1F2; color: {COLOR_DANGER}; width: 50px; height: 50px; border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;">
+                                                    <span style="font-size: 0.65rem; color: #FDA4AF;">{d_month}</span>
+                                                    <span style="font-size: 1.1rem; line-height: 1;">{d_day}</span>
+                                            </div>
+                                            <div>
+                                                <div style="font-weight: 600; color: {COLOR_TEXT}; font-size: 0.95rem;">{row['descricao']}</div>
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                        <span style="background: #F3F4F6; color: #4B5563; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row['categoria']}</span>
+                                                        <span style="background: {'#DEF7EC' if row.get('status')=='Pago' else '#FFFBEB'}; color: {'#03543F' if row.get('status')=='Pago' else '#92400E'}; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">{row.get('status','Pendente')}</span>
+                                                        <span style="background: #F1F5F9; color: #64748B; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem;">Ref: {row['mes_referencia']}</span>
+                                                        <span style="color: {COLOR_DANGER}; font-size: 0.85rem; font-weight: 700;">{val_fmt}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                    with c_row2:
+                                        st.markdown('<div class="mobile-row-fix" style="display:none;"></div>', unsafe_allow_html=True)
+                                        c_check, c_edit_d, c_del_d = st.columns([1, 1, 1], gap="small")
+                                        
+                                        # Despesa Actions
+                                        with c_check:
+                                            if row.get('status') != 'Pago':
+                                                 if st.button("✅", key=f"pay_{row['id']}", help="Marcar como Pago"):
+                                                     if update_transaction(row['id'], {"status": "Pago"}):
+                                                         st.session_state["toast_msg"] = "Conta paga! 💸"
+                                                         st.rerun()
+                    
+                                        # Edit Dialog Despesa
+                                        with c_edit_d:
+                                             if st.button("✏️", key=f"btn_edit_d_{row['id']}"):
+                                                 edit_transaction_dialog(row, "despesa")
+                    
+                                        with c_del_d:
+                                            with st.popover("🗑️"):
+                                                st.write("Confirma?")
+                                                if st.button("Sim", key=f"del_desp_{row['id']}"):
+                                                    if delete_transaction(row['id']):
+                                                        st.session_state["toast_msg"] = f"Despesa de R$ {row['valor']:.2f} removida."
+                                                        st.rerun()
+                    
+                                    st.markdown("<hr style='margin: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
+
+            # Pagination removed
+            st.markdown('</div>', unsafe_allow_html=True)
 
 
 # --- ABA 4: NOVO ---

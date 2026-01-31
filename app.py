@@ -986,6 +986,89 @@ if selected == "Dashboard":
 
 
 
+    # --- GRÁFICOS ADICIONAIS ---
+    st.markdown("##### 📊 Análise Detalhada")
+    
+    # 1. Distribuição de Despesas (Pizza)
+    df_desp_chart = df_view[df_view['tipo'] == 'Despesa']
+    if not df_desp_chart.empty:
+        c_pie, c_heat = st.columns([1, 1])
+        
+        with c_pie:
+            st.markdown("**Distribuição de Despesas**")
+            st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+            fig_pie = px.pie(df_desp_chart, values='valor', names='categoria', hole=0.5, color_discrete_sequence=px.colors.qualitative.Pastel)
+            fig_pie.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=250, showlegend=False)
+            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig_pie, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with c_heat:
+            st.markdown("**Mapa de Calor (Dia x Categoria)**")
+            st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+            # Heatmap: Day of Week vs Category
+            df_heat = df_desp_chart.copy()
+            df_heat['dia_sem'] = df_heat['data'].dt.day_name().replace({
+                'Monday': 'Seg', 'Tuesday': 'Ter', 'Wednesday': 'Qua', 'Thursday': 'Qui', 
+                'Friday': 'Sex', 'Saturday': 'Sáb', 'Sunday': 'Dom'
+            })
+            # Sort order for days
+            dia_order = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+            
+            heatmap_data = df_heat.groupby(['categoria', 'dia_sem'])['valor'].sum().reset_index()
+            if not heatmap_data.empty:
+                fig_heat = px.density_heatmap(
+                    heatmap_data, x='dia_sem', y='categoria', z='valor', 
+                    category_orders={"dia_sem": dia_order},
+                    color_continuous_scale="Reds"
+                )
+                fig_heat.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=250, xaxis_title=None, yaxis_title=None)
+                st.plotly_chart(fig_heat, use_container_width=True, config={'displayModeBar': False})
+            else:
+                st.info("Dados insuficientes para mapa de calor.")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    # 3. Comparativo Anual (Linha do Tempo) - Mostrar apenas se 'Todos' ou muitos dados
+    if mes_sel == "Todos" or len(df['mes_referencia'].unique()) > 1:
+        st.markdown("**📅 Evolução Anual (Receitas x Despesas)**")
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+        # Prepare data
+        monthly_trend = df.groupby(['mes_referencia', 'tipo'])['valor'].sum().reset_index()
+        
+        # Sort months correctly using a helper if possible or assume date sorting if we had a date column. 
+        # Since mes_referencia is string, sorting might be alpha. 
+        # Quick fix: Create a temporary date column for sorting
+        monthly_trend['sort_key'] = monthly_trend['mes_referencia'].apply(lambda x: datetime.strptime(x, "%B %Y") if len(x.split()) == 2 else datetime.min)
+        # Note: strptime requires locale matching for Portuguese month names ("Janeiro"). 
+        # Python's locale might not be set to PT.
+        # Fallback: Don't sort here, rely on natural order if inserted correctly, or implement a manual map locally.
+        
+        # Manual Sort Map
+        mes_map = {"Janeiro": 1, "Fevereiro": 2, "Março": 3, "Abril": 4, "Maio": 5, "Junho": 6, 
+                   "Julho": 7, "Agosto": 8, "Setembro": 9, "Outubro": 10, "Novembro": 11, "Dezembro": 12}
+        
+        def get_sort_key(m_str):
+            try:
+                parts = m_str.split()
+                if len(parts) == 2:
+                    return int(parts[1]) * 100 + mes_map.get(parts[0], 0)
+                return 0
+            except:
+                return 0
+                
+        monthly_trend['sort_val'] = monthly_trend['mes_referencia'].apply(get_sort_key)
+        monthly_trend = monthly_trend.sort_values('sort_val')
+        
+        fig_line = px.line(monthly_trend, x='mes_referencia', y='valor', color='tipo', 
+                           markers=True, color_discrete_map={'Receita': COLOR_SUCCESS, 'Despesa': COLOR_DANGER})
+        fig_line.update_layout(
+            margin=dict(t=20, b=10, l=10, r=10), height=300, 
+            xaxis_title=None, yaxis_title=None,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_line, use_container_width=True, config={'displayModeBar': False})
+        st.markdown('</div>', unsafe_allow_html=True)
+
 # ==========================================
 # ABA 2: RECEITAS
 # ==========================================

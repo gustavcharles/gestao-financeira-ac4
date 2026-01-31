@@ -414,10 +414,14 @@ def edit_transaction_dialog(row, tipo_cat_key):
     except: s_idx = 0
     e_status = st.selectbox("Status", status_opts, index=s_idx)
     
+    # Recorrente Checkbox
+    e_rec = st.checkbox("Recorrente? (Repetir todo mês)", value=row.get('recorrente', False))
+    
     if st.button("💾 Salvar Alterações", type="primary", use_container_width=True):
         upd = {
             "valor": e_val, "descricao": e_desc, "categoria": e_cat,
-            "data": e_date, "mes_referencia": e_ref, "status": e_status
+            "data": e_date, "mes_referencia": e_ref, "status": e_status,
+            "recorrente": e_rec
         }
         if update_transaction(row['id'], upd):
             st.session_state["toast_msg"] = "Transação atualizada com sucesso!"
@@ -654,6 +658,16 @@ selected = option_menu(
 )
 
 df = get_transactions()
+if 'recorrente' not in df.columns: df['recorrente'] = False # Ensure column exists
+
+# Auto-Run Recurrence Check
+if "first_run_recurrence" not in st.session_state:
+    if process_recurring_bills(df):
+        st.session_state["toast_msg"] = "Contas recorrentes geradas para este mês! 📅"
+        st.session_state["first_run_recurrence"] = True
+        st.rerun()
+    st.session_state["first_run_recurrence"] = True
+
 df['mes_referencia'] = df['mes_referencia'].fillna("Geral")
 mes_atual = get_current_month_str()
 
@@ -682,7 +696,14 @@ if selected == "Dashboard":
     c1, c2 = st.columns(2)
     with c1: st.markdown(card_metric("Receita Total", f"R$ {rec:,.2f}", "12% vs mês ant.", "pos"), unsafe_allow_html=True)
     with c2: st.markdown(card_metric("Despesas", f"R$ {desp:,.2f}", "5% vs mês ant.", "neg"), unsafe_allow_html=True)
-    st.markdown(card_metric("Saldo Líquido", f"R$ {saldo:,.2f}", "Margem saudável", "pos"), unsafe_allow_html=True)
+    
+    # Forecast Logic
+    recur_pending = df_view[(df_view['recorrente']==True) & (df_view['status']=='Pendente')]['valor'].sum()
+    forecast_bal = saldo - recur_pending
+    
+    c3, c4 = st.columns(2)
+    with c3: st.markdown(card_metric("Saldo Líquido", f"R$ {saldo:,.2f}", "Atual", "pos"), unsafe_allow_html=True)
+    with c4: st.markdown(card_metric("Previsão (Recorrentes)", f"R$ {forecast_bal:,.2f}", f"- R$ {recur_pending:.2f} pend.", "neg" if forecast_bal < 0 else "pos"), unsafe_allow_html=True)
 
     st.markdown("##### 📈 Fluxo Financeiro")
     if not df_view.empty:
@@ -1090,8 +1111,13 @@ elif selected == "Novo +":
             "categoria": cat, 
             "descricao": desc, 
             "valor": val, 
+            "valor": val, 
             "status": "Pendente"
         }
+        
+        # Add checkbox for recurrence in New Tab
+        is_rec = st.checkbox("Transação Recorrente? (Repetir mensalmente)", key="new_recur_check")
+        new_data["recorrente"] = is_rec
         
         if add_transaction(new_data):
             # st.success... removido em favor do Toast persistente

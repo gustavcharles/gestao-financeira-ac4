@@ -15,6 +15,11 @@ import io
 import html
 import requests
 
+# --- HELPER FUNCTIONS ---
+def format_currency(value):
+    """Formata valor para padrão BRL (R$ 1.234,56)"""
+    return f"R$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
 # --- AUTH & CONFIG ---
 if "firebase_web" in st.secrets:
     FIREBASE_WEB_API_KEY = st.secrets["firebase_web"]["api_key"]
@@ -1151,7 +1156,20 @@ if selected == "Dashboard":
     rec = df_view[df_view['tipo']=='Receita']['valor'].sum()
     desp = df_view[df_view['tipo']=='Despesa']['valor'].sum()
     saldo = rec - desp
-    st.metric("Saldo do Mês", f"R$ {saldo:.2f}", delta=None)
+
+    # Display Saldo as a big feature
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, {COLOR_PRIMARY} 0%, {COLOR_BG} 150%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 20px; border: 1px solid {COLOR_BORDER};">
+        <div style="color: {COLOR_TEXT}; font-size: 1rem; margin-bottom: 5px;">Saldo do Mês</div>
+        <div style="font-size: 2.5rem; font-weight: 800; color: {COLOR_PRIMARY};">
+            {format_currency(saldo)}
+        </div>
+        <div style="font-size: 0.9rem; color: {COLOR_TEXT_LIGHT};">
+            Receitas: <span style="color: {COLOR_SUCCESS}; font-weight: 600;">{format_currency(rec)}</span> | 
+            Despesas: <span style="color: {COLOR_DANGER}; font-weight: 600;">{format_currency(desp)}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # INSIGHTS AVANÇADOS
     insights = generate_advanced_insights(df, mes_sel)
@@ -1162,16 +1180,16 @@ if selected == "Dashboard":
             
     # GRÁFICOS
     c1, c2 = st.columns(2)
-    with c1: st.markdown(card_metric("Receita Total", f"R$ {rec:,.2f}", "12% vs mês ant.", "pos"), unsafe_allow_html=True)
-    with c2: st.markdown(card_metric("Despesas", f"R$ {desp:,.2f}", "5% vs mês ant.", "neg"), unsafe_allow_html=True)
+    with c1: st.markdown(card_metric("Receita Total", format_currency(rec), "12% vs mês ant.", "pos"), unsafe_allow_html=True)
+    with c2: st.markdown(card_metric("Despesas", format_currency(desp), "5% vs mês ant.", "neg"), unsafe_allow_html=True)
     
     # Forecast Logic
     recur_pending = df_view[(df_view['recorrente']==True) & (df_view['status']=='Pendente')]['valor'].sum()
     forecast_bal = saldo - recur_pending
     
     c3, c4 = st.columns(2)
-    with c3: st.markdown(card_metric("Saldo Líquido", f"R$ {saldo:,.2f}", "Atual", "pos"), unsafe_allow_html=True)
-    with c4: st.markdown(card_metric("Previsão (Recorrentes)", f"R$ {forecast_bal:,.2f}", f"- R$ {recur_pending:.2f} pend.", "neg" if forecast_bal < 0 else "pos"), unsafe_allow_html=True)
+    with c3: st.markdown(card_metric("Saldo Líquido", format_currency(saldo), "Atual", "pos"), unsafe_allow_html=True)
+    with c4: st.markdown(card_metric("Previsão (Recorrentes)", format_currency(forecast_bal), f"- {format_currency(recur_pending)} pend.", "neg" if forecast_bal < 0 else "pos"), unsafe_allow_html=True)
 
     st.markdown("##### 📈 Fluxo Financeiro")
     if not df_view.empty:

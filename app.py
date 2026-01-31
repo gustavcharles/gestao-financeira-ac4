@@ -610,6 +610,36 @@ class PDF(FPDF):
         self.set_font('Arial', 'I', 8)
         self.cell(0, 10, f'Pág. {self.page_no()}', 0, 0, 'C')
 
+def backup_data(df):
+    """Salva um snapshot dos dados atuais na coleção 'backups' do Firestore."""
+    if db is None:
+        st.warning("Backup requer conexão com banco de dados.")
+        return False
+        
+    try:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Converter dataframe para lista de dicionários (JSON serializable)
+        # Converter datas para strings para evitar erro de serialização
+        df_backup = df.copy()
+        if not df_backup.empty:
+            df_backup['data'] = df_backup['data'].astype(str)
+            records = df_backup.to_dict(orient='records')
+        else:
+            records = []
+            
+        backup_doc = {
+            "created_at": timestamp,
+            "total_records": len(records),
+            "data": json.dumps(records, ensure_ascii=False) # Guardar como string JSON para economizar escritas/leituras complexas
+        }
+        
+        db.collection("backups").add(backup_doc)
+        return True
+    except Exception as e:
+        st.error(f"Erro no backup: {e}")
+        return False
+
 def generate_pdf_report(df, month_str):
     pdf = PDF()
     pdf.add_page()
@@ -1334,5 +1364,12 @@ elif selected == "Config":
             )
         except Exception as e:
             st.error(f"Erro ao gerar PDF: {e}")
+
+    # Cloud Backup Button
+    if st.button("☁️ Fazer Backup na Nuvem (Firestore)", use_container_width=True):
+        with st.spinner("Salvando backup seguro..."):
+            if backup_data(df):
+                st.session_state["toast_msg"] = "Backup realizado com sucesso! ✅"
+                st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)

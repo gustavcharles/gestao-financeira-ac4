@@ -12,6 +12,13 @@ import json
 from fpdf import FPDF
 import matplotlib.pyplot as plt
 import io
+import html
+
+# --- FUNÇÃO DE SANITIZAÇÃO ---
+def sanitize_input(text):
+    if text:
+        return html.escape(text.strip())
+    return text
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -435,7 +442,7 @@ def edit_transaction_dialog(row, tipo_cat_key):
     
     if st.button("💾 Salvar Alterações", type="primary", use_container_width=True):
         upd = {
-            "valor": e_val, "descricao": e_desc, "categoria": e_cat,
+            "valor": e_val, "descricao": sanitize_input(e_desc), "categoria": e_cat,
             "data": e_date, "mes_referencia": e_ref, "status": e_status,
             "recorrente": e_rec
         }
@@ -884,7 +891,7 @@ elif selected == "Receitas":
             if st.button("Salvar Receita", type="primary", use_container_width=True, key="quick_rec_btn"):
                 if add_transaction({
                     "tipo": "Receita", "data": nr_date, "mes_referencia": nr_ref,
-                    "categoria": nr_cat, "descricao": nr_desc, "valor": nr_val, "status": "Recebido"
+                    "categoria": nr_cat, "descricao": sanitize_input(nr_desc), "valor": nr_val, "status": "Recebido"
                 }):
                     st.session_state["toast_msg"] = f"Receita adicionada! ({nr_ref})"
                     st.rerun() 
@@ -1058,7 +1065,7 @@ elif selected == "Despesas":
             if st.button("Salvar Despesa", type="primary", use_container_width=True, key="quick_desp_btn"):
                 if add_transaction({
                     "tipo": "Despesa", "data": nd_date, "mes_referencia": nd_ref,
-                    "categoria": nd_cat, "descricao": nd_desc, "valor": nd_val, "status": "Pendente"
+                    "categoria": nd_cat, "descricao": sanitize_input(nd_desc), "valor": nd_val, "status": "Pendente"
                 }):
                      st.session_state["toast_msg"] = f"Despesa adicionada! ({nd_ref})"
                      st.rerun()
@@ -1230,8 +1237,7 @@ elif selected == "Novo +":
             "data": dt, 
             "mes_referencia": get_shifted_reference_month(dt, cat, tipo), 
             "categoria": cat, 
-            "descricao": desc, 
-            "valor": val, 
+            "descricao": sanitize_input(desc), 
             "valor": val, 
             "status": "Pendente"
         }

@@ -584,15 +584,15 @@ def ensure_firestore_compatible(data):
     return data
 
 @st.cache_data(ttl=300)
-def get_transactions():
+def get_transactions(user_id=None):
     if db is None:
         data = st.session_state['mock_data']
         df = pd.DataFrame(data) if data else pd.DataFrame(columns=['id', 'tipo', 'data', 'valor', 'categoria'])
     else:
         try:
-            # FIX: Filter by User ID
-            user_id = st.session_state['user_info']['localId']
-            docs = db.collection(COLLECTION_NAME).where("user_id", "==", user_id).stream()
+            # FIX: Filter by User ID (passed arg or session)
+            target_uid = user_id if user_id else st.session_state['user_info']['localId']
+            docs = db.collection(COLLECTION_NAME).where("user_id", "==", target_uid).stream()
             data = []
             for doc in docs:
                 d = doc.to_dict()
@@ -1284,7 +1284,9 @@ selected = option_menu(
 )
 
 with st.spinner("Carregando seus dados..."):
-    df = get_transactions()
+    # Pass user_id explicitly to fix cache collision
+    current_uid = st.session_state['user_info']['localId']
+    df = get_transactions(current_uid)
 
 if df.empty:
     st.info("👋 Bem-vindo! Parece que você ainda não tem transações cadastradas.")

@@ -427,6 +427,18 @@ def edit_transaction_dialog(row, tipo_cat_key):
             st.session_state["toast_msg"] = "Transação atualizada com sucesso!"
             st.rerun()
 
+    # Botão Duplicar
+    if st.button("📑 Duplicar Transação", use_container_width=True):
+        new_data = row.copy()
+        new_data['id'] = str(uuid.uuid4())
+        new_data['descricao'] = f"{row['descricao']} (Cópia)"
+        new_data['status'] = "Pendente"
+        # Mantém a data original ou muda para hoje? Vamos manter original para facilitar
+        
+        if add_transaction(new_data):
+            st.session_state["toast_msg"] = "Transação duplicada! 📑"
+            st.rerun()
+
 def get_current_month_str():
     return get_month_from_date(date.today())
 
@@ -747,6 +759,31 @@ if selected == "Dashboard":
     c1, c2 = st.columns([3, 1])
     c1.markdown(f"### Olá, Gestor AC-4 👋")
     
+    # Shortcuts Listener
+    st.components.v1.html(
+        """
+        <script>
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'n') {
+                e.preventDefault();
+                // Streamlit doesn't have a direct JS hook to switch tabs easily without re-run tricks.
+                // We'll simulate a click on the tab if possible or just show an alert for now.
+                // A reliable way is checking if elements exist.
+                // Trying to find the "Novo +" tab text and click it.
+                var tabs = parent.document.querySelectorAll('a');
+                for (var i = 0; i < tabs.length; i++) {
+                    if (tabs[i].textContent.includes('Novo +')) {
+                        tabs[i].click();
+                        break;
+                    }
+                }
+            }
+        });
+        </script>
+        """, height=0, width=0
+    )
+
+    # ... Existing Month Filter ...
     meses = sorted(df['mes_referencia'].unique(), reverse=True)
     if not meses: meses = [mes_atual]
     mes_sel = st.selectbox("Filtrar Período", ["Todos"] + list(meses), label_visibility="collapsed")

@@ -14,6 +14,14 @@ import io
 import html
 import requests
 
+# --- PAGE CONFIG (MUST BE FIRST) ---
+st.set_page_config(
+    page_title="Gestão Financeira AC-4",
+    page_icon="💸", # Pode ser um emoji ou caminho para arquivo .png
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
 # --- HELPER FUNCTIONS ---
 def format_currency(value):
     """Formata valor para padrão BRL (R$ 1.234,56)"""

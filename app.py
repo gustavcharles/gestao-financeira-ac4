@@ -1037,11 +1037,7 @@ if selected == "Dashboard":
         
         # Sort months correctly using a helper if possible or assume date sorting if we had a date column. 
         # Since mes_referencia is string, sorting might be alpha. 
-        # Quick fix: Create a temporary date column for sorting
-        monthly_trend['sort_key'] = monthly_trend['mes_referencia'].apply(lambda x: datetime.strptime(x, "%B %Y") if len(x.split()) == 2 else datetime.min)
-        # Note: strptime requires locale matching for Portuguese month names ("Janeiro"). 
-        # Python's locale might not be set to PT.
-        # Fallback: Don't sort here, rely on natural order if inserted correctly, or implement a manual map locally.
+
         
         # Manual Sort Map
         mes_map = {"Janeiro": 1, "Fevereiro": 2, "Março": 3, "Abril": 4, "Maio": 5, "Junho": 6, 

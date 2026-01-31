@@ -984,13 +984,7 @@ if selected == "Dashboard":
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # AI Section
-    st.markdown("##### 🤖 Análise Inteligente")
-    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-    ai_msgs = generate_ai_insights(df, mes_sel)
-    for msg in ai_msgs:
-        st.markdown(f"- {msg}")
-    st.markdown('</div>', unsafe_allow_html=True)
+
 
 # ==========================================
 # ABA 2: RECEITAS

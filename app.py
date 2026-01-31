@@ -1270,68 +1270,68 @@ elif selected == "Novo +":
     ref_preview = get_shifted_reference_month(dt, cat, tipo)
     st.info(f"📅 **Competência do Orçamento:** {ref_preview}")
     
-        # Opções de Repetição
-        is_rec = st.checkbox("Repetir este lançamento?", key="new_recur_check")
-        recur_type = "Automático (Mensal)"
-        recur_times = 1
+    # Opções de Repetição
+    is_rec = st.checkbox("Repetir este lançamento?", key="new_recur_check")
+    recur_type = "Automático (Mensal)"
+    recur_times = 1
+    
+    if is_rec:
+        recur_type = st.radio("Como repetir?", ["Automático (Recorrente)", "Parcelado / Fixo (Gerar Agora)"], horizontal=True)
+        if recur_type == "Parcelado / Fixo (Gerar Agora)":
+            recur_times = st.number_input("Quantas vezes?", min_value=2, max_value=48, value=12, step=1)
+            st.info(f"Serão criados **{recur_times}** lançamentos imediatamente (de {dt.strftime('%m/%Y')} até {(dt + pd.DateOffset(months=recur_times-1)).strftime('%m/%Y')}).")
+
+    if st.button("Confirmar Lançamento", type="primary", use_container_width=True):
+        saved_ok = False
         
-        if is_rec:
-            recur_type = st.radio("Como repetir?", ["Automático (Recorrente)", "Parcelado / Fixo (Gerar Agora)"], horizontal=True)
-            if recur_type == "Parcelado / Fixo (Gerar Agora)":
-                recur_times = st.number_input("Quantas vezes?", min_value=2, max_value=48, value=12, step=1)
-                st.info(f"Serão criados **{recur_times}** lançamentos imediatamente (de {dt.strftime('%m/%Y')} até {(dt + pd.DateOffset(months=recur_times-1)).strftime('%m/%Y')}).")
-
-        if st.button("Confirmar Lançamento", type="primary", use_container_width=True):
-            saved_ok = False
-            
-            # LÓGICA DE SALVAMENTO
-            if is_rec and recur_type == "Parcelado / Fixo (Gerar Agora)":
-                # Gerar Múltiplos Lançamentos (recorrente=False pois já existem)
-                prog_bar = st.progress(0)
-                for i in range(recur_times):
-                    # Data futura
-                    future_dt = (pd.to_datetime(dt) + pd.DateOffset(months=i)).date()
-                    
-                    # Recalcular referência
-                    future_ref = get_shifted_reference_month(future_dt, cat, tipo)
-                    
-                    # Clonar dados
-                    batch_data = {
-                        "tipo": tipo,
-                        "data": future_dt,
-                        "mes_referencia": future_ref,
-                        "categoria": cat,
-                        "descricao": f"{sanitize_input(desc)} ({i+1}/{recur_times})",
-                        "valor": val,
-                        "status": "Pendente",
-                        "recorrente": False # Não precisa gerar auto, pois já criamos
-                    }
-                    add_transaction(batch_data)
-                    prog_bar.progress((i + 1) / recur_times)
+        # LÓGICA DE SALVAMENTO
+        if is_rec and recur_type == "Parcelado / Fixo (Gerar Agora)":
+            # Gerar Múltiplos Lançamentos (recorrente=False pois já existem)
+            prog_bar = st.progress(0)
+            for i in range(recur_times):
+                # Data futura
+                future_dt = (pd.to_datetime(dt) + pd.DateOffset(months=i)).date()
                 
-                saved_ok = True
-                msg_toast = f"{recur_times} lançamentos gerados com sucesso!"
+                # Recalcular referência
+                future_ref = get_shifted_reference_month(future_dt, cat, tipo)
                 
-            else:
-                # Lançamento Único (ou Recorrente Automático)
-                single_data = {
-                    "tipo": tipo, 
-                    "data": dt, 
-                    "mes_referencia": get_shifted_reference_month(dt, cat, tipo), 
-                    "categoria": cat, 
-                    "descricao": sanitize_input(desc), 
-                    "valor": val, 
+                # Clonar dados
+                batch_data = {
+                    "tipo": tipo,
+                    "data": future_dt,
+                    "mes_referencia": future_ref,
+                    "categoria": cat,
+                    "descricao": f"{sanitize_input(desc)} ({i+1}/{recur_times})",
+                    "valor": val,
                     "status": "Pendente",
-                    "recorrente": is_rec # True se for Automático
+                    "recorrente": False # Não precisa gerar auto, pois já criamos
                 }
-                
-                if add_transaction(single_data):
-                    saved_ok = True
-                    msg_toast = f"{tipo} adicionado! (Ref: {single_data['mes_referencia']})"
+                add_transaction(batch_data)
+                prog_bar.progress((i + 1) / recur_times)
+            
+            saved_ok = True
+            msg_toast = f"{recur_times} lançamentos gerados com sucesso!"
+            
+        else:
+            # Lançamento Único (ou Recorrente Automático)
+            single_data = {
+                "tipo": tipo, 
+                "data": dt, 
+                "mes_referencia": get_shifted_reference_month(dt, cat, tipo), 
+                "categoria": cat, 
+                "descricao": sanitize_input(desc), 
+                "valor": val, 
+                "status": "Pendente",
+                "recorrente": is_rec # True se for Automático
+            }
+            
+            if add_transaction(single_data):
+                saved_ok = True
+                msg_toast = f"{tipo} adicionado! (Ref: {single_data['mes_referencia']})"
 
-            if saved_ok:
-                st.session_state["toast_msg"] = msg_toast
-                st.rerun()
+        if saved_ok:
+            st.session_state["toast_msg"] = msg_toast
+            st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- ABA 5: CONFIG ---

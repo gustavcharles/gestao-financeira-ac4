@@ -308,6 +308,7 @@ if st.session_state['dark_mode']:
     COLOR_TEXT_LIGHT = "#CBD5E1"
     COLOR_CARD_BG = "#1E293B"
     COLOR_BORDER = "#334155"
+    COLOR_BTN_POPOVER = "#334155" # Darker visible button for Dark Mode
 else:
     COLOR_BG = "#F8FAFC"
     COLOR_PRIMARY = theme["PRIMARY"]
@@ -317,6 +318,7 @@ else:
     COLOR_TEXT_LIGHT = "#64748B"
     COLOR_CARD_BG = "#FFFFFF"
     COLOR_BORDER = "#E2E8F0"
+    COLOR_BTN_POPOVER = theme["PRIMARY"] # Default primary for Light Mode
 
 # --- CSS CUSTOMIZADO (VISUAL DESIGN) ---
 st.markdown(f"""
@@ -482,9 +484,9 @@ st.markdown(f"""
 
     /* Estilo Específico para Botões de Popover (Nova Receita/Despesa) */
     div[data-testid="stPopover"] > button {{
-        background-color: {COLOR_PRIMARY} !important;
+        background-color: {COLOR_BTN_POPOVER} !important;
         color: white !important;
-        border: none !important;
+        border: 1px solid {COLOR_BORDER} !important;
     }}
     div[data-testid="stPopover"] > button p {{
         color: white !important;

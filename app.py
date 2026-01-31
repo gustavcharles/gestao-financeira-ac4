@@ -81,6 +81,7 @@ def auth_screen():
             padding: 10px 12px;
             border: 1px solid #E2E8F0;
             background-color: #F8FAFC;
+            color: #1E293B !important; 
         }
         .stTextInput input:focus {
             border-color: #2563EB;

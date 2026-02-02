@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -8,16 +8,18 @@ import {
     PlusCircle,
     LogOut,
     Menu,
-    X
+    X,
+    Shield
 } from 'lucide-react';
 import { auth } from '../../services/firebase';
 import { useSettings } from '../../hooks/useSettings';
-import { useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const Layout = () => {
     const [isOpen, setIsOpen] = useState(false);
     const location = useLocation();
     const { settings } = useSettings();
+    const { userProfile } = useAuth();
 
     // Apply Theme & Dark Mode
     useEffect(() => {
@@ -47,6 +49,11 @@ export const Layout = () => {
         { name: 'Novo +', path: '/novo', icon: PlusCircle },
         { name: 'Config', path: '/config', icon: Settings },
     ];
+
+    // Conditionally Add Admin Link
+    if (userProfile?.role === 'admin') {
+        navItems.push({ name: 'Admin', path: '/admin', icon: Shield });
+    }
 
     return (
         <div className="flex h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-200">

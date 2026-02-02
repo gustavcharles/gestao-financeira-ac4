@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../services/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore'; // Added imports
+import { auth, db } from '../services/firebase';
 import { Shield, Lock, Mail, ArrowRight } from 'lucide-react';
 
 export const Login = () => {
@@ -23,9 +24,31 @@ export const Login = () => {
                 if (password !== confirmPass) {
                     throw new Error("As senhas não conferem.");
                 }
-                await createUserWithEmailAndPassword(auth, email, password);
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // Create User Profile in Firestore
+                await setDoc(doc(db, 'users', user.uid), {
+                    email: user.email,
+                    // Hardcode admin for specific email, otherwise user
+                    role: email === 'gustav.charles@gmail.com' ? 'admin' : 'user',
+                    // Verify if admin, otherwise pending
+                    status: email === 'gustav.charles@gmail.com' ? 'active' : 'pending',
+                    createdAt: serverTimestamp()
+                });
             } else {
-                await signInWithEmailAndPassword(auth, email, password);
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // Auto-fix for Admin if account already existed
+                if (user.email === 'gustav.charles@gmail.com') {
+                    await setDoc(doc(db, 'users', user.uid), {
+                        email: user.email,
+                        role: 'admin',
+                        status: 'active',
+                        updatedAt: serverTimestamp()
+                    }, { merge: true });
+                }
             }
             navigate('/');
         } catch (err: any) {

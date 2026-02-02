@@ -6,6 +6,8 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Transactions } from './pages/Transactions';
 import { Config } from './pages/Config';
+import { Admin } from './pages/Admin';
+import { Pending } from './pages/Pending';
 
 function App() {
   return (
@@ -13,6 +15,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/pending" element={<Pending />} />
 
           <Route path="/" element={
             <ProtectedRoute>
@@ -24,11 +27,13 @@ function App() {
             <Route path="despesas" element={<Transactions defaultType="Despesa" />} />
             <Route path="novo" element={<Transactions />} />
             <Route path="config" element={<Config />} />
-            {/* Redirect 'novo' to Transactions for now, user can click + there 
-                or we can open the modal automatically. 
-                For simplicity, let's map 'novo' to 'Transactions' but maybe passing a state to open modal?
-                Let's just redirect to defaults.
-            */}
+
+            {/* Admin Route */}
+            <Route path="admin" element={
+              <ProtectedRoute requireAdmin={true}>
+                <Admin />
+              </ProtectedRoute>
+            } />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

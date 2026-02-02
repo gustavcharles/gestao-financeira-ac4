@@ -1,8 +1,0 @@
-streamlit>=1.35.0
-pandas
-plotly
-firebase-admin
-streamlit-option-menu
-fpdf
-matplotlib
-requests

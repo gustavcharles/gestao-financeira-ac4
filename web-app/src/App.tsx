@@ -8,11 +8,13 @@ import { Transactions } from './pages/Transactions';
 import { Config } from './pages/Config';
 import { Admin } from './pages/Admin';
 import { Pending } from './pages/Pending';
+import { ReloadPrompt } from './components/ui/ReloadPrompt';
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <ReloadPrompt />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/pending" element={<Pending />} />

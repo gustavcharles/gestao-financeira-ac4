@@ -234,8 +234,14 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
                                 <div className="flex items-center gap-4 flex-1 w-full">
                                     {/* Date Box */}
                                     <div className="flex-shrink-0 w-14 h-14 bg-slate-50 dark:bg-slate-700 rounded-xl flex flex-col items-center justify-center text-slate-600 dark:text-slate-300 font-bold border border-slate-100 dark:border-slate-600">
-                                        <span className="text-xs uppercase text-primary-500 font-bold">{format(dateObj, 'MMM', { locale: ptBR })}</span>
-                                        <span className="text-lg leading-none text-slate-600 dark:text-slate-300">{format(dateObj, 'dd')}</span>
+                                        {!isNaN(dateObj.getTime()) ? (
+                                            <>
+                                                <span className="text-xs uppercase text-primary-500 font-bold">{format(dateObj, 'MMM', { locale: ptBR })}</span>
+                                                <span className="text-lg leading-none text-slate-600 dark:text-slate-300">{format(dateObj, 'dd')}</span>
+                                            </>
+                                        ) : (
+                                            <span className="text-xs text-red-500">Erro</span>
+                                        )}
                                     </div>
 
                                     {/* Info */}

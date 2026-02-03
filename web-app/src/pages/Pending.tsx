@@ -1,7 +1,28 @@
 import { auth } from '../services/firebase';
 import { Clock, LogOut, ShieldAlert } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { useEffect } from 'react';
 
 export const Pending = () => {
+    const navigate = useNavigate();
+    const { currentUser } = useAuth();
+
+    useEffect(() => {
+        if (!currentUser) {
+            navigate('/login');
+        }
+    }, [currentUser, navigate]);
+
+    const handleLogout = async () => {
+        try {
+            await auth.signOut();
+            navigate('/login');
+        } catch (error) {
+            console.error("Error signing out:", error);
+        }
+    };
+
     return (
         <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900 p-4">
             <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl shadow-xl overflow-hidden p-8 text-center">
@@ -27,7 +48,7 @@ export const Pending = () => {
                 </div>
 
                 <button
-                    onClick={() => auth.signOut()}
+                    onClick={handleLogout}
                     className="w-full py-3 bg-white dark:bg-slate-700 border-2 border-slate-100 dark:border-slate-600 text-slate-600 dark:text-slate-300 font-semibold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors flex items-center justify-center gap-2"
                 >
                     <LogOut size={20} />

@@ -95,7 +95,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, u
                     descricao,
                     valor: baseValue,
                     categoria,
-                    data,
+                    data: format(baseDateObj, 'yyyy-MM-dd'),
                     mes_referencia: mes_ref,
                     status,
                     recorrente

@@ -10,6 +10,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt', // Prompt user for update
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      workbox: {
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: false,
+      },
       manifest: {
         name: 'Gestão Financeira AC-4',
         short_name: 'Gestão AC-4',

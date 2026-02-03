@@ -109,6 +109,9 @@ export const Layout = () => {
                             <LogOut size={20} />
                             <span>Sair</span>
                         </button>
+                        <div className="mt-4 px-4 text-xs text-slate-400 text-center">
+                            v1.0.1 (PWA Enabled)
+                        </div>
                     </div>
                 </div>
             </aside>

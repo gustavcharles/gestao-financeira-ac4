@@ -229,60 +229,63 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
                         const isFinished = item.status === 'Pago' || item.status === 'Recebido';
 
                         return (
-                            <div key={item.id} className="group bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 hover:border-primary-100 dark:hover:border-primary-900 hover:shadow-md transition-all flex items-center gap-4">
-                                {/* Date Box */}
-                                <div className="flex-shrink-0 w-14 h-14 bg-slate-50 dark:bg-slate-700 rounded-xl flex flex-col items-center justify-center text-slate-600 dark:text-slate-300 font-bold border border-slate-100 dark:border-slate-600">
-                                    <span className="text-xs uppercase text-primary-500 font-bold">{format(dateObj, 'MMM', { locale: ptBR })}</span>
-                                    <span className="text-lg leading-none text-slate-600 dark:text-slate-300">{format(dateObj, 'dd')}</span>
-                                </div>
+                            <div key={item.id} className="group bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 hover:border-primary-100 dark:hover:border-primary-900 hover:shadow-md transition-all flex flex-col md:flex-row md:items-center gap-4">
+                                {/* Date & Info */}
+                                <div className="flex items-center gap-4 flex-1 w-full">
+                                    {/* Date Box */}
+                                    <div className="flex-shrink-0 w-14 h-14 bg-slate-50 dark:bg-slate-700 rounded-xl flex flex-col items-center justify-center text-slate-600 dark:text-slate-300 font-bold border border-slate-100 dark:border-slate-600">
+                                        <span className="text-xs uppercase text-primary-500 font-bold">{format(dateObj, 'MMM', { locale: ptBR })}</span>
+                                        <span className="text-lg leading-none text-slate-600 dark:text-slate-300">{format(dateObj, 'dd')}</span>
+                                    </div>
 
-                                {/* Info */}
-                                <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-slate-900 dark:text-white truncate">{item.descricao}</h4>
-                                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                                        <span className={`flex items-center gap-1 ${isRec ? 'text-emerald-600' : 'text-slate-500'}`}>
-                                            {isRec ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                            {item.categoria}
-                                        </span>
-                                        <span>•</span>
-                                        <span className={`px-2 py-0.5 rounded-full ${isFinished
-                                            ? 'bg-emerald-100 text-emerald-700'
-                                            : 'bg-amber-100 text-amber-700'
-                                            }`}>
-                                            {item.status}
-                                        </span>
-                                        {item.recorrente && <span className="text-primary-500 font-medium">↺ Recorrente</span>}
+                                    {/* Info */}
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-semibold text-slate-900 dark:text-white truncate">{item.descricao}</h4>
+                                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                                            <span className={`flex items-center gap-1 ${isRec ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                                {isRec ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                                {item.categoria}
+                                            </span>
+                                            <span className="hidden xs:inline">•</span>
+                                            <span className={`px-2 py-0.5 rounded-full ${isFinished
+                                                ? 'bg-emerald-100 text-emerald-700'
+                                                : 'bg-amber-100 text-amber-700'
+                                                }`}>
+                                                {item.status}
+                                            </span>
+                                            {item.recorrente && <span className="text-primary-500 font-medium">↺ Recorrente</span>}
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* Value & Actions */}
-                                <div className="text-right flex flex-col items-end gap-2">
-                                    <div className={`font-bold ${isRec ? 'text-emerald-600' : 'text-red-500'}`}>
+                                <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center w-full md:w-auto gap-4 md:gap-2 border-t border-slate-100 dark:border-slate-700 md:border-none pt-3 md:pt-0 mt-1 md:mt-0">
+                                    <div className={`font-bold text-lg md:text-base order-2 md:order-1 ${isRec ? 'text-emerald-600' : 'text-red-500'}`}>
                                         {isRec ? '+' : '-'} {formatCurrency(item.valor)}
                                     </div>
-                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex gap-1 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity order-1 md:order-2">
                                         <button
                                             onClick={() => toggleStatus(item)}
                                             title={isFinished ? "Marcar como Pendente" : "Marcar como Pago/Recebido"}
-                                            className={`p-1.5 rounded-lg transition-colors ${isFinished
+                                            className={`p-2 md:p-1.5 rounded-lg transition-colors ${isFinished
                                                 ? 'text-emerald-500 bg-emerald-50 hover:bg-emerald-100'
                                                 : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50'
                                                 }`}
                                         >
-                                            <CheckCircle2 size={16} className={isFinished ? 'fill-current' : ''} />
+                                            <CheckCircle2 size={18} className={isFinished ? 'fill-current' : ''} />
                                         </button>
                                         <button
                                             onClick={() => handleDuplicate(item)}
                                             title="Duplicar"
-                                            className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg"
+                                            className="p-2 md:p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg"
                                         >
-                                            <Copy size={16} />
+                                            <Copy size={18} />
                                         </button>
-                                        <button onClick={() => handleEdit(item)} className="p-1.5 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg">
-                                            <Edit2 size={16} />
+                                        <button onClick={() => handleEdit(item)} className="p-2 md:p-1.5 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg">
+                                            <Edit2 size={18} />
                                         </button>
-                                        <button onClick={() => item.id && requestDelete(item.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
-                                            <Trash2 size={16} />
+                                        <button onClick={() => item.id && requestDelete(item.id)} className="p-2 md:p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                                            <Trash2 size={18} />
                                         </button>
                                     </div>
                                 </div>

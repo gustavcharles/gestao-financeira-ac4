@@ -115,7 +115,7 @@ export const Layout = () => {
 
             {/* Main Content */}
             <main className="flex-1 overflow-auto md:ml-64">
-                <div className="container p-4 mx-auto md:p-8 max-w-7xl">
+                <div className="container p-4 pt-20 mx-auto md:p-8 md:pt-8 max-w-7xl">
                     <Outlet />
                 </div>
             </main>

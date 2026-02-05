@@ -130,7 +130,17 @@ export const Dashboard = () => {
         });
         const annualData = Array.from(annualMap.entries())
             .map(([name, { receita, despesa }]) => ({ name, receita, despesa }))
-            .reverse();
+            .sort((a, b) => {
+                const monthMap: { [key: string]: number } = {
+                    'Janeiro': 0, 'Fevereiro': 1, 'Março': 2, 'Abril': 3, 'Maio': 4, 'Junho': 5,
+                    'Julho': 6, 'Agosto': 7, 'Setembro': 8, 'Outubro': 9, 'Novembro': 10, 'Dezembro': 11
+                };
+                const [monthA, yearA] = a.name.split(' ');
+                const [monthB, yearB] = b.name.split(' ');
+
+                if (yearA !== yearB) return Number(yearA) - Number(yearB);
+                return (monthMap[monthA] || 0) - (monthMap[monthB] || 0);
+            });
 
         return { categoryData, heatMap, annualData };
     }, [filteredData, transactions]);

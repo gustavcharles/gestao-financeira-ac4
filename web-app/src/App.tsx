@@ -8,6 +8,7 @@ import { Transactions } from './pages/Transactions';
 import { Config } from './pages/Config';
 import { Admin } from './pages/Admin';
 import { Pending } from './pages/Pending';
+import { ScalesPage } from './modules/scales/pages/ScalesPage';
 import { ReloadPrompt } from './components/ui/ReloadPrompt';
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
             <Route path="receitas" element={<Transactions defaultType="Receita" />} />
             <Route path="despesas" element={<Transactions defaultType="Despesa" />} />
             <Route path="novo" element={<Transactions />} />
+            <Route path="escalas" element={<ScalesPage />} />
             <Route path="config" element={<Config />} />
 
             {/* Admin Route */}

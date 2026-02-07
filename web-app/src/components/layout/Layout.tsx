@@ -10,7 +10,8 @@ import {
     Menu,
     X,
     Shield,
-    Bell
+    Bell,
+    Calendar // Added for Scales
 } from 'lucide-react';
 import { auth } from '../../services/firebase';
 import { useSettings } from '../../hooks/useSettings';
@@ -83,6 +84,7 @@ export const Layout = () => {
         { name: 'Receitas', path: '/receitas', icon: TrendingUp },
         { name: 'Despesas', path: '/despesas', icon: TrendingDown },
         { name: 'Novo +', path: '/novo', icon: PlusCircle },
+        { name: 'Escalas', path: '/escalas', icon: Calendar },
         { name: 'Config', path: '/config', icon: Settings },
     ];
 

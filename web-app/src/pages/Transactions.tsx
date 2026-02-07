@@ -46,9 +46,27 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
-    // Month Options
+    // Month Options - Sorted chronologically
     const months = useMemo(() => {
-        return Array.from(new Set(transactions.map(t => t.mes_referencia)));
+        const uniqueMonths = Array.from(new Set(transactions.map(t => t.mes_referencia)));
+
+        // Sort months chronologically (Janeiro 2026, Fevereiro 2026, etc.)
+        return uniqueMonths.sort((a, b) => {
+            // Parse "Mês Ano" format (e.g., "Janeiro 2026")
+            const monthNames = [
+                'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+            ];
+
+            const [monthA, yearA] = a.split(' ');
+            const [monthB, yearB] = b.split(' ');
+
+            const yearDiff = parseInt(yearB) - parseInt(yearA);
+            if (yearDiff !== 0) return yearDiff; // Sort by year first (descending)
+
+            // Then by month (descending within same year)
+            return monthNames.indexOf(monthB) - monthNames.indexOf(monthA);
+        });
     }, [transactions]);
 
     // Sync type filter when prop changes

@@ -255,7 +255,7 @@ export const Dashboard = () => {
             {settings.showWelcome && (
                 <div className="bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-900 dark:to-purple-900 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden animate-in slide-in-from-top-4 duration-500 mb-6">
                     <div className="relative z-10">
-                        <h3 className="text-xl font-bold mb-3">👋 Bem-vindo ao Gestão AC-4!</h3>
+                        <h3 className="text-xl font-bold mb-3">👋 Bem-vindo ao Gestão AC-4 Pro!</h3>
                         <div className="space-y-2 mb-4 text-indigo-100">
                             <p className="font-medium">Primeiros Passos:</p>
                             <ul className="list-disc list-inside space-y-1 ml-2 text-sm">

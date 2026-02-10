@@ -117,7 +117,7 @@ export const Layout = () => {
                     {isOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
 
-                <h1 className="font-bold text-slate-800 dark:text-white">Gestão AC-4</h1>
+                <h1 className="font-bold text-slate-800 dark:text-white">Gestão AC-4 Pro</h1>
 
                 <button
                     className="p-2 relative text-slate-600 dark:text-slate-300"
@@ -159,7 +159,7 @@ export const Layout = () => {
                     <div className="hidden md:block p-6 border-b border-slate-100 dark:border-slate-700">
                         <div className="flex items-center gap-3">
                             <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
-                            <h1 className="text-xl font-bold text-slate-800 dark:text-white">Gestão AC-4</h1>
+                            <h1 className="text-xl font-bold text-slate-800 dark:text-white">Gestão AC-4 Pro</h1>
                         </div>
                     </div>
 

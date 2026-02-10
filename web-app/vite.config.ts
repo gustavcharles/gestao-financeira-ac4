@@ -16,8 +16,8 @@ export default defineConfig({
         skipWaiting: false,
       },
       manifest: {
-        name: 'Gestão Financeira AC-4',
-        short_name: 'Gestão AC-4',
+        name: 'Gestão Financeira AC-4 Pro',
+        short_name: 'Gestão AC-4 Pro',
         description: 'Aplicativo de controle financeiro',
         theme_color: '#ffffff',
         start_url: '/',

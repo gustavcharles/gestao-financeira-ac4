@@ -27,7 +27,7 @@ export const Expired = () => {
                 <p className="text-slate-600 dark:text-slate-300 mb-6">
                     Seu período de avaliação gratuita terminou.
                     <br />
-                    Para continuar usando o <strong>Gestão AC-4</strong>, assine um de nossos planos.
+                    Para continuar usando o <strong>Gestão AC-4 Pro</strong>, assine um de nossos planos.
                 </p>
 
                 <div className="space-y-3">

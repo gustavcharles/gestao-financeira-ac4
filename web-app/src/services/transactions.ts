@@ -9,7 +9,7 @@ import {
     doc,
     Timestamp
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, logUserEvent } from "./firebase";
 import type { Transaction } from "../utils/finance";
 
 const COLLECTION_NAME = "transacoes";
@@ -59,6 +59,12 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
             ...transaction,
             created_at: Timestamp.now()
         });
+
+        logUserEvent('transaction_created', {
+            tipo: transaction.tipo,
+            categoria: transaction.categoria
+        });
+
         return docRef.id;
     } catch (error) {
         console.error("Error adding transaction: ", error);

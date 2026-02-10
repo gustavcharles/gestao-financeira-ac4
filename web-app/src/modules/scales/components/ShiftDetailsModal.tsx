@@ -322,46 +322,48 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({ shift, sca
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 bg-gray-50 dark:bg-gray-800/50 flex flex-col sm:flex-row justify-end gap-3 sm:space-x-3">
-                    {onDelete && (
-                        <button
-                            onClick={handleDelete}
-                            className="flex items-center justify-center px-4 py-3 sm:py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors w-full sm:w-auto min-h-[44px]"
-                        >
-
-                            <Trash2 size={16} className="mr-2" />
-                            Remover
-                        </button>
-                    )}
-
-                    {onEditScale && shift.scaleId && (
-                        <div className="flex flex-col sm:flex-row gap-3 sm:space-x-2 w-full sm:w-auto">
-                            {onDuplicateScale && (
-                                <button
-                                    onClick={() => setIsDuplicating(true)}
-                                    className="flex items-center justify-center px-3 py-3 sm:py-2 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50 rounded-md transition-colors w-full sm:w-auto min-h-[44px]"
-                                    title="Duplicar Escala"
-                                >
-                                    <Copy size={16} className="mr-2" />
-                                    Duplicar
-                                </button>
-                            )}
+                <div className="p-4 bg-gray-50 dark:bg-gray-800/50">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {onDelete && (
                             <button
-                                onClick={() => onEditScale(shift.scaleId!)}
-                                className="flex items-center justify-center px-4 py-3 sm:py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors w-full sm:w-auto min-h-[44px]"
+                                onClick={handleDelete}
+                                className="flex items-center justify-center px-2 py-2 text-xs sm:text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors min-h-[44px] sm:min-h-[36px]"
                             >
-                                <Settings size={16} className="mr-2" />
-                                Configurar
+                                <Trash2 size={14} className="sm:mr-1" />
+                                <span className="hidden sm:inline">Remover</span>
                             </button>
-                        </div>
-                    )}
+                        )}
 
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-3 sm:py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600 w-full sm:w-auto min-h-[44px]"
-                    >
-                        Fechar
-                    </button>
+                        {onEditScale && shift.scaleId && (
+                            <>
+                                {onDuplicateScale && (
+                                    <button
+                                        onClick={() => setIsDuplicating(true)}
+                                        className="flex items-center justify-center px-2 py-2 text-xs sm:text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50 rounded-md transition-colors min-h-[44px] sm:min-h-[36px]"
+                                        title="Duplicar Escala"
+                                    >
+                                        <Copy size={14} className="sm:mr-1" />
+                                        <span className="hidden sm:inline">Duplicar</span>
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => onEditScale(shift.scaleId!)}
+                                    className="flex items-center justify-center px-2 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors min-h-[44px] sm:min-h-[36px]"
+                                >
+                                    <Settings size={14} className="sm:mr-1" />
+                                    <span className="hidden sm:inline">Configurar</span>
+                                </button>
+                            </>
+                        )}
+
+                        <button
+                            onClick={onClose}
+                            className="flex items-center justify-center px-2 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600 min-h-[44px] sm:min-h-[36px]"
+                        >
+                            <X size={14} className="sm:mr-1" />
+                            <span className="hidden sm:inline">Fechar</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 

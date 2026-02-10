@@ -29,7 +29,7 @@ import {
     Bar,
     Legend
 } from 'recharts';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export const Dashboard = () => {
@@ -82,13 +82,19 @@ export const Dashboard = () => {
     const calculations = useMemo(() => {
         let rec = 0;
         let desp = 0;
+        let ac4Total = 0;
 
         filteredData.forEach(t => {
             if (t.tipo === 'Receita') rec += Number(t.valor);
             else if (t.tipo === 'Despesa') desp += Number(t.valor);
+
+            // AC-4 Total: Sum all AC-4 transactions in the filtered period
+            if (t.categoria === 'AC-4' && t.tipo === 'Receita') {
+                ac4Total += Number(t.valor);
+            }
         });
 
-        return { rec, desp, saldo: rec - desp };
+        return { rec, desp, saldo: rec - desp, ac4Total };
     }, [filteredData]);
 
     // Advanced Insights
@@ -159,47 +165,63 @@ export const Dashboard = () => {
 
     // Scales Insights
     const scalesInsights = useMemo(() => {
-        if (!shifts || shifts.length === 0) return { nextShift: null, ac4Total: 0 };
+        if (!shifts || shifts.length === 0) return { nextShift: null, ac4Total: 0, ac4PaymentTotal: 0 };
 
         const now = new Date();
         const nowStr = format(now, 'yyyy-MM-dd');
 
         // 1. Next Shift
-        // Find first shift with date >= today
-
         const futureShifts = shifts
-            .filter(s => s.status !== 'canceled') // Don't show canceled
-            .filter(s => s.date >= nowStr) // Rough filter by day
+            .filter(s => s.status !== 'canceled')
+            .filter(s => s.date >= nowStr)
             .sort((a, b) => a.date.localeCompare(b.date));
 
-        // Refine for time? If today, check if endTime > now?
-        // Simple: First one in list is likely next if sorted.
         const nextShift = futureShifts[0] || null;
 
-        // 2. AC-4 / Extra Revenue Estimate for Selected Month
+        // 2. AC-4 Logic
         let ac4Total = 0;
-        if (selectedMonth !== 'Todos') {
-            shifts.forEach(s => {
-                if (s.status === 'canceled') return;
+        let ac4PaymentTotal = 0;
 
-                // Check if shift is in selected month
-                // Shift has 'date' YYYY-MM-DD.
-                // We need to match with "Janeiro 2026".
+        shifts.forEach(s => {
+            if (s.status === 'canceled') return;
+
+            // Only consider AC-4 shifts (Broad Check)
+            const isAC4 = s.shiftTypeSnapshot?.isAC4 ||
+                s.scaleCategory === 'AC-4' ||
+                s.shiftTypeSnapshot?.name?.includes('AC-4') ||
+                s.note?.includes('AC-4');
+
+            if (isAC4) {
                 const shiftDate = parseISO(s.date);
-                const shiftMonthStr = getMonthFromDate(shiftDate);
+                const start = s.startTime.toDate ? s.startTime.toDate() : new Date(s.startTime as any);
+                const end = s.endTime.toDate ? s.endTime.toDate() : new Date(s.endTime as any);
+                const val = calculateShiftValue(start, end);
 
-                if (shiftMonthStr === selectedMonth) {
-                    // Check if AC-4
-                    if (s.shiftTypeSnapshot?.isAC4) {
-                        const start = s.startTime.toDate ? s.startTime.toDate() : new Date(s.startTime as any);
-                        const end = s.endTime.toDate ? s.endTime.toDate() : new Date(s.endTime as any);
-                        ac4Total += calculateShiftValue(start, end);
+                // X+2 Rule: Payment Month is Shift Month + 2
+                // We need to calculate the payment date to check against selectedMonth filter
+                const paymentDate = addMonths(shiftDate, 2);
+                const paymentMonthStr = getMonthFromDate(paymentDate);
+
+                // Filter Logic
+                if (selectedMonth === 'Todos') {
+                    // "Todos os Ac4 gerados" implies accumulated total of all time
+                    ac4PaymentTotal += val;
+                } else {
+                    // "soma dos Ac-4 que o militar vai RECEBER aquele mês"
+                    if (paymentMonthStr === selectedMonth) {
+                        ac4PaymentTotal += val;
                     }
                 }
-            });
-        }
 
-        return { nextShift, ac4Total };
+                // Legacy Projection Logic
+                const shiftMonthStr = getMonthFromDate(shiftDate);
+                if (selectedMonth !== 'Todos' && shiftMonthStr === selectedMonth) {
+                    ac4Total += val;
+                }
+            }
+        });
+
+        return { nextShift, ac4Total, ac4PaymentTotal };
     }, [shifts, selectedMonth]);
 
     const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'];
@@ -254,46 +276,59 @@ export const Dashboard = () => {
             {/* Scales & Finance Summary */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
-                {/* Main Feature Card: Saldo (Modified to be 2 cols) */}
-                <div className="lg:col-span-2 relative overflow-hidden bg-gradient-to-br from-primary-600 to-slate-900 rounded-3xl p-8 text-white shadow-xl shadow-primary-900/10">
+                {/* Main Feature Card: Saldo (Now 1 col) */}
+                <div className="relative overflow-hidden bg-gradient-to-br from-primary-600 to-slate-900 rounded-3xl p-6 text-white shadow-xl shadow-primary-900/10 flex flex-col justify-between">
                     <div className="relative z-10">
                         <div className="text-primary-100 font-medium mb-2 flex items-center gap-2">
                             <Wallet size={20} />
                             <span>Saldo do Mês</span>
                         </div>
-                        <div className="text-4xl md:text-5xl font-bold mb-6 tracking-tight">
+                        <div className="text-3xl font-bold mb-4 tracking-tight">
                             {formatCurrency(calculations.saldo)}
                         </div>
 
-                        <div className="flex flex-wrap gap-6 text-sm font-medium">
-                            <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm">
-                                <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                                    <ArrowUpRight size={18} />
-                                </div>
-                                <div>
+                        <div className="flex flex-col gap-2 text-sm font-medium">
+                            <div className="flex items-center justify-between bg-white/10 px-3 py-2 rounded-xl backdrop-blur-sm">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                                        <ArrowUpRight size={14} />
+                                    </div>
                                     <div className="text-primary-200 text-xs">Receitas</div>
-                                    <div className="text-emerald-400 text-lg">{formatCurrency(calculations.rec)}</div>
                                 </div>
+                                <div className="text-emerald-400">{formatCurrency(calculations.rec)}</div>
                             </div>
 
-                            <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm">
-                                <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
-                                    <ArrowDownRight size={18} />
-                                </div>
-                                <div>
+                            <div className="flex items-center justify-between bg-white/10 px-3 py-2 rounded-xl backdrop-blur-sm">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
+                                        <ArrowDownRight size={14} />
+                                    </div>
                                     <div className="text-primary-200 text-xs">Despesas</div>
-                                    <div className="text-red-400 text-lg">{formatCurrency(calculations.desp)}</div>
                                 </div>
+                                <div className="text-red-400">{formatCurrency(calculations.desp)}</div>
                             </div>
                         </div>
                     </div>
 
                     {/* Decorative Background Elements */}
-                    <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-primary-500 rounded-full blur-3xl opacity-20"></div>
-                    <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-purple-500 rounded-full blur-3xl opacity-20"></div>
-                    {/* Decorative Background Elements */}
-                    <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-primary-500 rounded-full blur-3xl opacity-20"></div>
-                    <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-purple-500 rounded-full blur-3xl opacity-20"></div>
+                    <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-primary-500 rounded-full blur-3xl opacity-20"></div>
+                </div>
+
+                {/* AC-4 Total Card (New) */}
+                <div className="bg-gradient-to-br from-indigo-500 to-violet-700 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden flex flex-col justify-between">
+                    <div className="relative z-10">
+                        <div className="text-indigo-100 font-medium mb-2 flex items-center gap-2">
+                            <DollarSign size={20} />
+                            <span>Total AC-4</span>
+                        </div>
+                        <div className="text-3xl font-bold mb-1 tracking-tight">
+                            {formatCurrency(calculations.ac4Total)}
+                        </div>
+                        <p className="text-indigo-200 text-xs">
+                            {selectedMonth === 'Todos' ? 'Total Acumulado' : `Recebido em ${selectedMonth}`}
+                        </p>
+                    </div>
+                    <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
                 </div>
 
                 {/* Scales / Next Shift Widget */}
@@ -332,21 +367,7 @@ export const Dashboard = () => {
                         )}
                     </div>
 
-                    {/* AC-4 Projection */}
-                    {scalesInsights.ac4Total > 0 && selectedMonth !== 'Todos' && (
-                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
-                            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 mb-1">
-                                <DollarSign size={16} />
-                                <span className="text-xs font-bold uppercase">Projeção AC-4</span>
-                            </div>
-                            <div className="text-2xl font-bold text-slate-800 dark:text-white">
-                                {formatCurrency(scalesInsights.ac4Total)}
-                            </div>
-                            <p className="text-xs text-slate-400">
-                                Estimado no mês selecionado
-                            </p>
-                        </div>
-                    )}
+
                 </div>
             </div>
 

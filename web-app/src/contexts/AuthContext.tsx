@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { auth, db } from '../services/firebase';
+import { auth, db, logUserEvent } from '../services/firebase';
 
 export interface UserProfile {
     role: 'admin' | 'user';
@@ -30,6 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentUser(user);
 
             if (user) {
+                logUserEvent('login', { method: 'email' });
                 // Subscribe to profile changes (real-time approval update)
                 const unsubProfile = onSnapshot(doc(db, 'users', user.uid), (doc) => {
                     if (doc.exists()) {

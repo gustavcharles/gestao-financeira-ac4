@@ -10,7 +10,7 @@ import {
     deleteDoc,
     Timestamp
 } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
+import { db, logUserEvent } from '../../../services/firebase';
 import type { ShiftScale, ShiftEvent } from '../types';
 import { generateShifts } from '../utils/generator';
 
@@ -53,6 +53,9 @@ export const ScaleService = {
      */
     async createScale(scale: Omit<ShiftScale, 'id'>): Promise<string> {
         const docRef = await addDoc(collection(db, SCALES_COLLECTION), scale);
+
+        logUserEvent('scale_created', { name: scale.name });
+
         return docRef.id;
     },
 

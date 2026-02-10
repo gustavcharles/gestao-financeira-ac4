@@ -31,6 +31,7 @@ import {
 } from 'recharts';
 import { format, parseISO, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { TrialBanner } from '../components/TrialBanner';
 
 export const Dashboard = () => {
     const { transactions, loading } = useTransactions();
@@ -246,6 +247,9 @@ export const Dashboard = () => {
                     {months.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
             </div>
+
+            {/* Trial Banner */}
+            <TrialBanner />
 
             {/* Welcome Card */}
             {settings.showWelcome && (

@@ -17,6 +17,11 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode, requireAdmin?
         return <Navigate to="/login" />;
     }
 
+    // 🚫 ANTI-ABUSE: Bloquear usuários com trial expirado
+    if (userProfile?.status === 'expired') {
+        return <Navigate to="/expired" />;
+    }
+
     // Pending Check
     if (userProfile?.status === 'pending' || userProfile?.status === 'blocked') {
         return <Navigate to="/pending" />;

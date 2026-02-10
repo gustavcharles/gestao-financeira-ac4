@@ -8,41 +8,54 @@ import { Transactions } from './pages/Transactions';
 import { Config } from './pages/Config';
 import { Admin } from './pages/Admin';
 import { Pending } from './pages/Pending';
+import { Expired } from './pages/Expired';
 import { ScalesPage } from './modules/scales/pages/ScalesPage';
 import { ReloadPrompt } from './components/ui/ReloadPrompt';
+import { useExpirationCheck } from './hooks/useExpirationCheck';
+
+// Componente interno que usa o hook dentro do AuthProvider
+function AppContent() {
+  // Verificar expiração de trial/assinatura automaticamente
+  useExpirationCheck();
+
+  return (
+    <BrowserRouter>
+      <ReloadPrompt />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/pending" element={<Pending />} />
+        <Route path="/expired" element={<Expired />} />
+
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<Dashboard />} />
+          <Route path="receitas" element={<Transactions defaultType="Receita" />} />
+          <Route path="despesas" element={<Transactions defaultType="Despesa" />} />
+          <Route path="novo" element={<Transactions />} />
+          <Route path="escalas" element={<ScalesPage />} />
+          <Route path="config" element={<Config />} />
+
+          {/* Admin Route */}
+          <Route path="admin" element={
+            <ProtectedRoute requireAdmin={true}>
+              <Admin />
+            </ProtectedRoute>
+          } />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
 
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <ReloadPrompt />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/pending" element={<Pending />} />
-
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<Dashboard />} />
-            <Route path="receitas" element={<Transactions defaultType="Receita" />} />
-            <Route path="despesas" element={<Transactions defaultType="Despesa" />} />
-            <Route path="novo" element={<Transactions />} />
-            <Route path="escalas" element={<ScalesPage />} />
-            <Route path="config" element={<Config />} />
-
-            {/* Admin Route */}
-            <Route path="admin" element={
-              <ProtectedRoute requireAdmin={true}>
-                <Admin />
-              </ProtectedRoute>
-            } />
-          </Route>
-
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <AppContent />
     </AuthProvider>
   );
 }

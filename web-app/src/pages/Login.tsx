@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore'; // Added imports
+import { doc, setDoc, serverTimestamp, query, collection, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { Shield, Lock, Mail, ArrowRight } from 'lucide-react';
 
@@ -24,18 +24,51 @@ export const Login = () => {
                 if (password !== confirmPass) {
                     throw new Error("As senhas não conferem.");
                 }
+
+                // 🚫 ANTI-ABUSE: Verificar se o email já foi usado antes
+                const emailQuery = query(
+                    collection(db, 'users'),
+                    where('email', '==', email.toLowerCase())
+                );
+                const existingUsers = await getDocs(emailQuery);
+
+                if (!existingUsers.empty) {
+                    // Email já foi usado - verificar se foi expirado
+                    const existingUser = existingUsers.docs[0].data();
+                    if (existingUser.status === 'expired') {
+                        throw new Error('Este email já foi usado em um período de teste. Para continuar usando o sistema, assine um plano.');
+                    } else {
+                        throw new Error('Este email já está cadastrado. Faça login.');
+                    }
+                }
+
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
 
                 // Create User Profile in Firestore
+                const isAdmin = email === 'gustav.charles@gmail.com';
+                const now = new Date();
+                const trialEnds = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // +30 dias
+
                 await setDoc(doc(db, 'users', user.uid), {
                     email: user.email,
-                    // Hardcode admin for specific email, otherwise user
-                    role: email === 'gustav.charles@gmail.com' ? 'admin' : 'user',
-                    // Verify if admin, otherwise pending
-                    status: email === 'gustav.charles@gmail.com' ? 'active' : 'pending',
+                    role: isAdmin ? 'admin' : 'user',
+                    status: isAdmin ? 'active' : 'trial', // Admin ativo, usuário em trial
+                    plan: isAdmin ? 'annual' : 'trial',
+                    trialEndsAt: serverTimestamp(), // Will be updated to actual date
+                    subscriptionEndsAt: null,
+                    paymentId: null,
+                    lastSyncAt: null,
+                    notificationsSent: {},
                     createdAt: serverTimestamp()
                 });
+
+                // Update trialEndsAt with actual date (workaround for serverTimestamp)
+                if (!isAdmin) {
+                    await setDoc(doc(db, 'users', user.uid), {
+                        trialEndsAt: trialEnds
+                    }, { merge: true });
+                }
             } else {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
@@ -46,6 +79,8 @@ export const Login = () => {
                         email: user.email,
                         role: 'admin',
                         status: 'active',
+                        plan: 'annual',
+                        subscriptionEndsAt: null,
                         updatedAt: serverTimestamp()
                     }, { merge: true });
                 }

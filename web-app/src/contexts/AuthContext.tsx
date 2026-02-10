@@ -6,8 +6,21 @@ import { auth, db, logUserEvent } from '../services/firebase';
 
 export interface UserProfile {
     role: 'admin' | 'user';
-    status: 'active' | 'pending' | 'blocked';
+    status: 'trial' | 'active' | 'expired' | 'blocked' | 'pending';
     email: string;
+
+    // Trial and Subscription fields
+    plan: 'trial' | 'annual' | null;
+    trialEndsAt: any; // Timestamp
+    subscriptionEndsAt: any | null; // Timestamp
+    paymentId: string | null; // ID do Asaas
+    lastSyncAt: any | null; // Timestamp
+    notificationsSent?: {
+        trial7d?: any; // Timestamp
+        trial3d?: any; // Timestamp
+        trial0d?: any; // Timestamp
+    };
+    createdAt?: any; // Timestamp
 }
 
 interface AuthContextType {

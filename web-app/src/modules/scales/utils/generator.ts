@@ -61,7 +61,10 @@ export const generateShifts = (
                     startTime: Timestamp.fromDate(shiftStartDateTime),
                     endTime: Timestamp.fromDate(shiftEndDateTime),
                     shiftTypeId: scale.defaultShiftTypeId,
-                    shiftTypeSnapshot: shiftType,
+                    shiftTypeSnapshot: {
+                        ...shiftType,
+                        isAC4: scale.category === 'AC-4' || shiftType.isAC4
+                    },
                     scaleCategory: scale.category, // Propagate Category
                     isManualOverride: false,
                     status: isBefore(shiftStartDateTime, today) ? 'completed' : 'scheduled'
@@ -141,7 +144,8 @@ export const generateShifts = (
                         ...shiftType,
                         startTime: startTimeStr,
                         endTime: endTimeStr,
-                        hours: hours
+                        hours: hours,
+                        isAC4: scale.category === 'AC-4' || shiftType.isAC4 // Force flag if category is AC-4
                     },
                     scaleCategory: scale.category,
                     isManualOverride: false,

@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { getShiftedReferenceMonth } from '../../utils/finance';
 import type { Transaction } from '../../utils/finance';
-import { X, Check } from 'lucide-react';
+import { calculateShiftValue } from '../../modules/scales/utils/ac4Calculator';
+import { X, Check, Clock } from 'lucide-react';
 import { addMonths, format } from 'date-fns';
+import { DEFAULT_SHIFT_TYPES } from '../../modules/scales/types';
 
 import { useSettings } from '../../hooks/useSettings';
+import type { CategoryItem } from '../../services/settings';
+import { CategorySelect } from '../ui/CategorySelect';
 
 interface TransactionFormProps {
     initialData?: Transaction | null;
@@ -18,17 +22,35 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, u
     const cats = settings.categories;
 
     // Fallback if settings are empty (shouldn't happen due to defaults)
-    const currentCats = cats[initialData?.tipo || 'Despesa']?.length > 0
-        ? cats
-        : { Receita: ["Outros"], Despesa: ["Outros"] };
+    const fallbackCat: CategoryItem = { name: "Outros", icon: "more-horizontal", color: "#64748B" };
+
+    // Ensure we work with CategoryItem[]
+    const safeCats = {
+        Receita: (cats.Receita || [fallbackCat]).map(c => typeof c === 'string' ? { name: c, icon: 'more-horizontal', color: '#64748B' } : c),
+        Despesa: (cats.Despesa || [fallbackCat]).map(c => typeof c === 'string' ? { name: c, icon: 'more-horizontal', color: '#64748B' } : c)
+    };
+
+    const currentCats = safeCats;
 
     const [tipo, setTipo] = useState<'Receita' | 'Despesa'>(initialData?.tipo || 'Despesa');
     const [descricao, setDescricao] = useState(initialData?.descricao || '');
     const [valor, setValor] = useState(initialData?.valor?.toString() || '');
-    const [categoria, setCategoria] = useState(initialData?.categoria || currentCats['Despesa'][0]);
+
+    // Initial category might be just a name string from Transaction
+    const [categoria, setCategoria] = useState(initialData?.categoria || (currentCats['Despesa'][0]?.name || "Outros"));
+
     const [data, setData] = useState(initialData?.data || new Date().toISOString().split('T')[0]);
     const [status, setStatus] = useState<'Pago' | 'Recebido' | 'Pendente'>(initialData?.status || 'Pendente');
     const [recorrente, setRecorrente] = useState(initialData?.recorrente || false);
+
+    // AC-4 Specific State
+    const [startTime, setStartTime] = useState(initialData?.startTime || '');
+    const [endTime, setEndTime] = useState(initialData?.endTime || '');
+    const [calculatedHours, setCalculatedHours] = useState(initialData?.hours || 0);
+
+    // Scale Form emulation
+    const [selectedShiftTypeId, setSelectedShiftTypeId] = useState(DEFAULT_SHIFT_TYPES[0].id);
+    const [useCustomTime, setUseCustomTime] = useState(!!(initialData?.startTime && initialData?.endTime)); // Default to custom if editing existing with times? Or just false.
 
     // Installment state
     const [isParcelado, setIsParcelado] = useState(false);
@@ -36,11 +58,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, u
 
     const [loading, setLoading] = useState(false);
 
+    // Check if category is AC-4
+    const isAC4 = categoria.toUpperCase().includes('AC-4') || categoria.toUpperCase().includes('AC4');
+
     // Reset category when Type changes if current category is invalid
     useEffect(() => {
         const typeCats = currentCats[tipo];
-        if (!typeCats.includes(categoria)) {
-            setCategoria(typeCats[0] || "Outros");
+        if (!typeCats.some(c => c.name === categoria)) {
+            setCategoria(typeCats[0]?.name || "Outros");
         }
     }, [tipo, currentCats]);
 
@@ -50,26 +75,71 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, u
         if (tipo === 'Despesa' && status === 'Recebido') setStatus('Pago');
     }, [tipo]);
 
+    // Sync ShiftType with Times (ScaleForm logic)
+    useEffect(() => {
+        if (isAC4 && !useCustomTime) {
+            const shiftType = DEFAULT_SHIFT_TYPES.find(t => t.id === selectedShiftTypeId);
+            if (shiftType) {
+                setStartTime(shiftType.startTime);
+                setEndTime(shiftType.endTime);
+            }
+        }
+    }, [isAC4, useCustomTime, selectedShiftTypeId]);
+
+    // AC-4 Calculation Logic
+    useEffect(() => {
+        if (isAC4 && startTime && endTime && data) {
+            try {
+                // Construct Date objects for calculation
+                // We use the Transaction Date for the context
+                const [y, m, d] = data.split('-').map(Number);
+                const dateObj = new Date(y, m - 1, d);
+
+                // Parse Time
+                const [startH, startM] = startTime.split(':').map(Number);
+                const [endH, endM] = endTime.split(':').map(Number);
+
+                const start = new Date(dateObj);
+                start.setHours(startH, startM, 0, 0);
+
+                const end = new Date(dateObj);
+                end.setHours(endH, endM, 0, 0);
+
+                // Handle overnight shift (end time <= start time)
+                // If equal (e.g. 08:00 to 08:00), assume 24h shift
+                if (end <= start) {
+                    end.setDate(end.getDate() + 1);
+                }
+
+                // Calculate Value
+                const val = calculateShiftValue(start, end);
+                setValor(val.toFixed(2));
+
+                // Calculate Hours
+                const diffMs = end.getTime() - start.getTime();
+                const diffHours = diffMs / (1000 * 60 * 60);
+                setCalculatedHours(parseFloat(diffHours.toFixed(1)));
+
+            } catch (e) {
+                console.error("Error calculating AC-4 value", e);
+            }
+        }
+    }, [isAC4, startTime, endTime, data]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!descricao || !valor) return;
 
         setLoading(true);
         try {
-            // FIX: Parse date components manually to create Local Time Date object
-            // new Date("YYYY-MM-DD") creates UTC, which shifts to previous day in client timezone
             const [y, m, d] = data.split('-').map(Number);
-            const baseDateObj = new Date(y, m - 1, d); // Month is 0-indexed
-
+            const baseDateObj = new Date(y, m - 1, d);
             const baseValue = parseFloat(valor.replace(',', '.'));
 
             if (isParcelado && !initialData && numParcelas > 1) {
-                // Creates multiple transactions
                 for (let i = 0; i < numParcelas; i++) {
                     const currentDate = addMonths(baseDateObj, i);
-                    // Standardize date string YYYY-MM-DD
                     const dateStr = format(currentDate, 'yyyy-MM-dd');
-
                     const mes_ref = getShiftedReferenceMonth(currentDate, categoria, tipo);
 
                     const payload: Omit<Transaction, 'id'> = {
@@ -80,13 +150,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, u
                         categoria,
                         data: dateStr,
                         mes_referencia: mes_ref,
-                        status: i === 0 ? status : 'Pendente', // Only first one keeps status user set? Or all? Usually others are pending.
-                        recorrente: false // Installments usually aren't recurring in the sense of 'forever'
+                        status: i === 0 ? status : 'Pendente',
+                        recorrente: false
                     };
                     await onSave(payload);
                 }
             } else {
-                // Single transaction (or Editing)
                 const mes_ref = getShiftedReferenceMonth(baseDateObj, categoria, tipo);
 
                 const payload: Omit<Transaction, 'id'> = {
@@ -98,7 +167,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, u
                     data: format(baseDateObj, 'yyyy-MM-dd'),
                     mes_referencia: mes_ref,
                     status,
-                    recorrente
+                    recorrente,
+                    // Save AC-4 specifics if applicable
+                    ...(isAC4 ? { startTime, endTime, hours: calculatedHours } : {})
                 };
                 await onSave(payload);
             }
@@ -125,7 +196,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, u
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    {/* Tipo Switch */}
                     <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-xl">
                         {(['Receita', 'Despesa'] as const).map(t => (
                             <button
@@ -153,6 +223,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, u
                                 onChange={(e) => setValor(e.target.value)}
                                 className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none dark:text-white"
                                 placeholder="0,00"
+                                disabled={isAC4 && !!startTime && !!endTime} // Disable if auto-calculated
                             />
                         </div>
                         <div>
@@ -166,6 +237,94 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, u
                             />
                         </div>
                     </div>
+
+                    {/* AC-4 Time Inputs (ScaleForm Style) */}
+                    {isAC4 && (
+                        <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/30 animate-in fade-in slide-in-from-top-2 duration-200 space-y-4">
+
+                            <div className="flex items-center gap-2 border-b border-emerald-200 dark:border-emerald-800 pb-2">
+                                <Clock size={16} className="text-emerald-600 dark:text-emerald-400" />
+                                <span className="font-bold text-sm text-emerald-800 dark:text-emerald-300">
+                                    Cálculo AC-4
+                                </span>
+                            </div>
+
+                            {/* Dropdown for Shift Type */}
+                            <div>
+                                <label className="block text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Tipo de Plantão</label>
+                                <select
+                                    value={selectedShiftTypeId}
+                                    onChange={(e) => {
+                                        setSelectedShiftTypeId(e.target.value);
+                                        // If changing type, ensure we reset custom time toggle if user wants 'presets'
+                                        // But ScaleForm keeps 'useCustomTime' separate. 
+                                        // If user selects a type, we usually want to apply it immediately unless Custom is checked.
+                                        // If Custom is checked, changing dropdown does nothing visually until unchecked.
+                                    }}
+                                    disabled={useCustomTime}
+                                    className="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-emerald-200 dark:border-emerald-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white text-sm disabled:opacity-50"
+                                >
+                                    {DEFAULT_SHIFT_TYPES.map(type => (
+                                        <option key={type.id} value={type.id}>
+                                            {type.name} ({type.hours}h)
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Checkbox for Custom Time */}
+                            <div className="flex items-center">
+                                <label className="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={useCustomTime}
+                                        onChange={(e) => {
+                                            setUseCustomTime(e.target.checked);
+                                            // If unchecked, it will auto-revert to selectedShiftTypeId times via useEffect
+                                        }}
+                                        className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                                    />
+                                    <span className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
+                                        Informar horário real (Entrada/Saída)
+                                    </span>
+                                </label>
+                            </div>
+
+                            {/* Time Inputs (Conditional) */}
+                            {useCustomTime && (
+                                <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">
+                                            Entrada
+                                        </label>
+                                        <input
+                                            type="time"
+                                            value={startTime}
+                                            onChange={(e) => setStartTime(e.target.value)}
+                                            className="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-emerald-200 dark:border-emerald-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">
+                                            Saída
+                                        </label>
+                                        <input
+                                            type="time"
+                                            value={endTime}
+                                            onChange={(e) => setEndTime(e.target.value)}
+                                            className="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-emerald-200 dark:border-emerald-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none dark:text-white"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {calculatedHours > 0 && (
+                                <div className="text-center text-xs text-emerald-600 dark:text-emerald-400 font-bold bg-white/50 dark:bg-black/20 py-2 rounded-lg border border-emerald-100 dark:border-emerald-800/20">
+                                    {calculatedHours} horas &rarr; R$ {valor}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <div>
                         <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Descrição</label>
@@ -182,13 +341,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, u
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Categoria</label>
-                            <select
+                            <CategorySelect
+                                categories={currentCats[tipo]}
                                 value={categoria}
-                                onChange={(e) => setCategoria(e.target.value)}
-                                className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none dark:text-white"
-                            >
-                                {currentCats[tipo].map((c: string) => <option key={c} value={c}>{c}</option>)}
-                            </select>
+                                onChange={setCategoria}
+                            />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Status</label>
@@ -212,10 +369,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, u
                         </div>
                     </div>
 
-                    {/* Recurrence / Installments Options */}
                     {!initialData && (
                         <div className="space-y-3 pt-2">
-                            {/* Only allow choosing between Recurrent OR Installments to avoid confusion */}
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2">
                                     <input

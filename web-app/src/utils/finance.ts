@@ -13,6 +13,10 @@ export interface Transaction {
     status: 'Pago' | 'Recebido' | 'Pendente';
     recorrente: boolean;
     created_at?: any;
+    // Fields for AC-4 manual entries
+    startTime?: string;
+    endTime?: string;
+    hours?: number;
 }
 
 export const MONTH_MAP: { [key: string]: number } = {

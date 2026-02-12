@@ -50,25 +50,22 @@ export const Login = () => {
                 const now = new Date();
                 const trialEnds = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // +30 dias
 
+                // Force status to 'trial' for new users (except specific admin email)
+                const userStatus = isAdmin ? 'active' : 'trial';
+                const userPlan = isAdmin ? 'annual' : 'trial';
+
                 await setDoc(doc(db, 'users', user.uid), {
                     email: user.email,
                     role: isAdmin ? 'admin' : 'user',
-                    status: isAdmin ? 'active' : 'trial', // Admin ativo, usuário em trial
-                    plan: isAdmin ? 'annual' : 'trial',
-                    trialEndsAt: serverTimestamp(), // Will be updated to actual date
+                    status: userStatus,
+                    plan: userPlan,
+                    trialEndsAt: isAdmin ? serverTimestamp() : trialEnds,
                     subscriptionEndsAt: null,
                     paymentId: null,
                     lastSyncAt: null,
                     notificationsSent: {},
                     createdAt: serverTimestamp()
                 });
-
-                // Update trialEndsAt with actual date (workaround for serverTimestamp)
-                if (!isAdmin) {
-                    await setDoc(doc(db, 'users', user.uid), {
-                        trialEndsAt: trialEnds
-                    }, { merge: true });
-                }
             } else {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;

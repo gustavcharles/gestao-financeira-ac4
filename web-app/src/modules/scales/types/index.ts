@@ -56,8 +56,8 @@ export interface ShiftScale {
     // Ex: "D N F F" (Dia, Noite, Folga, Folga) -> cycleLength 4
     // 0: ShiftType.Dia, 1: ShiftType.Noite, 2: null, 3: null
     cycleMap?: Record<number, string>; // index do ciclo -> shiftTypeId
-    customStartTime?: string; // Optional custom start time (HH:mm)
-    customEndTime?: string; // Optional custom end time (HH:mm)
+    customStartTime?: string | null; // Optional custom start time (HH:mm)
+    customEndTime?: string | null; // Optional custom end time (HH:mm)
 
     isActive: boolean;
     createdAt: Timestamp;

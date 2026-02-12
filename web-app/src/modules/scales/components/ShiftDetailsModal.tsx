@@ -90,6 +90,10 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({ shift, sca
                     const { start, end } = getEffectiveDates();
                     const value = calculateShiftValue(start, end);
 
+                    // Calculate Hours for the transaction
+                    const diffMinutes = differenceInMinutes(end, start);
+                    const hoursVal = Math.floor(diffMinutes / 60);
+
                     if (value <= 0) {
                         setFeedback({ type: 'error', message: "Valor calculado é zero. Verifique os horários." });
                         return;
@@ -105,7 +109,8 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({ shift, sca
                         data: shift.date, // YYYY-MM-DD
                         status: 'Pendente', // Default to Pending for AC-4
                         recorrente: false,
-                        mes_referencia: getShiftedReferenceMonth(new Date(shift.date + 'T12:00:00'), 'AC-4', 'Receita')
+                        mes_referencia: getShiftedReferenceMonth(new Date(shift.date + 'T12:00:00'), 'AC-4', 'Receita'),
+                        hours: hoursVal // Save the hours!
                     });
 
                     // Update shift status to 'confirmed'

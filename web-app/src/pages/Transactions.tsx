@@ -13,8 +13,6 @@ import {
     Search,
     Trash2,
     Edit2,
-    TrendingUp,
-    TrendingDown,
     CheckCircle2,
     Copy,
     FileText
@@ -23,6 +21,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 
 import { useLocation } from 'react-router-dom';
+import { useSettings } from '../hooks/useSettings';
+import { getIconComponent } from '../utils/categoryIcons';
 
 interface TransactionsProps {
     defaultType?: 'Todos' | 'Receita' | 'Despesa';
@@ -31,6 +31,7 @@ interface TransactionsProps {
 export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos' }) => {
 
     const { transactions, loading } = useTransactions();
+    const { settings } = useSettings();
     const { currentUser } = useAuth();
     const location = useLocation();
 
@@ -246,6 +247,18 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
                         const dateObj = parseISO(item.data);
                         const isFinished = item.status === 'Pago' || item.status === 'Recebido';
 
+                        // Lookup category icon
+                        // Safety check: settings.categories[item.tipo] might be undefined or string[] if not migrated
+                        const categoryList = settings.categories[item.tipo] || [];
+                        const catItem = Array.isArray(categoryList)
+                            ? categoryList.find((c: any) => c.name === item.categoria || c === item.categoria)
+                            : null;
+
+                        // If catItem is object, use it. If string, default stats.
+                        const iconName = typeof catItem === 'object' ? catItem?.icon : 'more-horizontal';
+                        const iconColor = typeof catItem === 'object' ? catItem?.color : (isRec ? '#10B981' : '#EF4444');
+                        const Icon = getIconComponent(iconName || 'more-horizontal');
+
                         return (
                             <div key={item.id} className="group bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 hover:border-primary-100 dark:hover:border-primary-900 hover:shadow-md transition-all flex flex-col md:flex-row md:items-center gap-4">
                                 {/* Date & Info */}
@@ -266,18 +279,24 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
                                     <div className="flex-1 min-w-0">
                                         <h4 className="font-semibold text-slate-900 dark:text-white truncate">{item.descricao}</h4>
                                         <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                                            <span className={`flex items-center gap-1 ${isRec ? 'text-emerald-600' : 'text-slate-500'}`}>
-                                                {isRec ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                            <span
+                                                className="flex items-center gap-1.5 px-2 py-0.5 rounded-md font-medium"
+                                                style={{
+                                                    backgroundColor: `${iconColor}20`,
+                                                    color: iconColor
+                                                }}
+                                            >
+                                                <Icon size={12} />
                                                 {item.categoria}
                                             </span>
                                             <span className="hidden xs:inline">•</span>
                                             <span className={`px-2 py-0.5 rounded-full ${isFinished
-                                                ? 'bg-emerald-100 text-emerald-700'
-                                                : 'bg-amber-100 text-amber-700'
+                                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                                : 'bg-amber-50 text-amber-700 border border-amber-100'
                                                 }`}>
                                                 {item.status}
                                             </span>
-                                            {item.recorrente && <span className="text-primary-500 font-medium">↺ Recorrente</span>}
+                                            {item.recorrente && <span className="text-primary-500 font-medium ml-1">↺ Recorrente</span>}
                                         </div>
                                     </div>
                                 </div>

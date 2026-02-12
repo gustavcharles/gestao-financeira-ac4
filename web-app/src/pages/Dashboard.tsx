@@ -1,4 +1,11 @@
 import { useMemo, useState, useEffect } from 'react';
+import { ExtraordinaryHoursCard } from '../components/dashboard/ExtraordinaryHoursCard';
+
+// ... existing imports ...
+
+// Inside Dashboard component ...
+
+// ... existing imports ...
 import { useTransactions } from '../hooks/useTransactions';
 import { useSettings } from '../hooks/useSettings';
 import { useScales } from '../modules/scales/hooks/useScales';
@@ -12,8 +19,7 @@ import {
     ArrowDownRight,
     AlertCircle,
     Calendar,
-    Clock,
-    DollarSign
+    Clock
 } from 'lucide-react';
 import {
     AreaChart,
@@ -29,7 +35,7 @@ import {
     Bar,
     Legend
 } from 'recharts';
-import { format, parseISO, addMonths } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { TrialBanner } from '../components/TrialBanner';
 
@@ -164,65 +170,82 @@ export const Dashboard = () => {
         return { categoryData, heatMap, annualData };
     }, [filteredData, transactions]);
 
-    // Scales Insights
+    // Scales Insights & Stats
     const scalesInsights = useMemo(() => {
-        if (!shifts || shifts.length === 0) return { nextShift: null, ac4Total: 0, ac4PaymentTotal: 0 };
+        if (!shifts || shifts.length === 0) return { upcomingShifts: [], ac4Total: 0, ac4Hours: 0 };
 
         const now = new Date();
         const nowStr = format(now, 'yyyy-MM-dd');
 
-        // 1. Next Shift
-        const futureShifts = shifts
+        // 1. Upcoming Shifts (Top 3)
+        const upcomingShifts = shifts
             .filter(s => s.status !== 'canceled')
             .filter(s => s.date >= nowStr)
-            .sort((a, b) => a.date.localeCompare(b.date));
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .slice(0, 3);
 
-        const nextShift = futureShifts[0] || null;
-
-        // 2. AC-4 Logic
+        // 2. AC-4 Logic (Work Month Basis)
         let ac4Total = 0;
-        let ac4PaymentTotal = 0;
+        let ac4Hours = 0;
 
         shifts.forEach(s => {
             if (s.status === 'canceled') return;
 
-            // Only consider AC-4 shifts (Broad Check)
+            // Only consider AC-4 shifts
             const isAC4 = s.shiftTypeSnapshot?.isAC4 ||
                 s.scaleCategory === 'AC-4' ||
-                s.shiftTypeSnapshot?.name?.includes('AC-4') ||
-                s.note?.includes('AC-4');
+                s.shiftTypeSnapshot?.name?.includes('AC-4');
 
             if (isAC4) {
                 const shiftDate = parseISO(s.date);
+                const shiftMonthStr = getMonthFromDate(shiftDate); // Work Month (e.g., Janeiro 2026)
+
                 const start = s.startTime.toDate ? s.startTime.toDate() : new Date(s.startTime as any);
                 const end = s.endTime.toDate ? s.endTime.toDate() : new Date(s.endTime as any);
                 const val = calculateShiftValue(start, end);
 
-                // X+2 Rule: Payment Month is Shift Month + 2
-                // We need to calculate the payment date to check against selectedMonth filter
-                const paymentDate = addMonths(shiftDate, 2);
-                const paymentMonthStr = getMonthFromDate(paymentDate);
+                // Calculate hours dynamically (in case user edited times but snapshot hours remained static)
+                // Use minutes for precision then convert to hours
+                const durationMs = end.getTime() - start.getTime();
+                const h = durationMs > 0 ? durationMs / (1000 * 60 * 60) : 0;
 
-                // Filter Logic
+                // Filter Logic: Match WORK MONTH
+                let match = false;
+
                 if (selectedMonth === 'Todos') {
-                    // "Todos os Ac4 gerados" implies accumulated total of all time
-                    ac4PaymentTotal += val;
+                    // Match Year of the current context? 
+                    // User said: "Annual calculation... sum of hours within the year Ex. 2026"
+                    // If "Todos" is selected, usually implies All Time or Current Year.
+                    // The Dashboard main filter "selectedMonth" is 'Janeiro 2026', 'Fevereiro 2026', etc.
+                    // Or 'Todos'.
+                    // If 'Todos', we sum everything available (logic of "All Periods").
+                    match = true;
                 } else {
-                    // "soma dos Ac-4 que o militar vai RECEBER aquele mês"
-                    if (paymentMonthStr === selectedMonth) {
-                        ac4PaymentTotal += val;
+                    // Match specific Work Month
+                    if (shiftMonthStr === selectedMonth) {
+                        match = true;
                     }
+                    // Note: If user wants "Yearly Total" displayed somewhere while "Jan" is selected,
+                    // we might need separate counters. 
+                    // But the card usually displays stats for the *Selected Period*.
+                    // If the card has a separate "Annual Total" display, we need to handle that.
+                    // Let's assume the stats returned are for the VIEWED period.
                 }
 
-                // Legacy Projection Logic
-                const shiftMonthStr = getMonthFromDate(shiftDate);
-                if (selectedMonth !== 'Todos' && shiftMonthStr === selectedMonth) {
+                if (match) {
                     ac4Total += val;
+                    ac4Hours += h;
                 }
             }
         });
 
-        return { nextShift, ac4Total, ac4PaymentTotal };
+        // NOTE: We are intentionally ignoring 'transactions' for the HOURS count here.
+        // The user specifically requested "Work Month" logic. 
+        // Transactions typically represent "Payment Month" (Cash Flow).
+        // Mixing them causes double counting and date mismatches.
+        // This card now represents "Production" (Hours Worked).
+
+        return { upcomingShifts, ac4Total, ac4Hours };
     }, [shifts, selectedMonth]);
 
     const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'];
@@ -281,97 +304,105 @@ export const Dashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
                 {/* Main Feature Card: Saldo (Now 1 col) */}
-                <div className="relative overflow-hidden bg-gradient-to-br from-primary-600 to-slate-900 rounded-3xl p-6 text-white shadow-xl shadow-primary-900/10 flex flex-col justify-between">
-                    <div className="relative z-10">
-                        <div className="text-primary-100 font-medium mb-2 flex items-center gap-2">
-                            <Wallet size={20} />
-                            <span>Saldo do Mês</span>
-                        </div>
-                        <div className="text-3xl font-bold mb-4 tracking-tight">
-                            {formatCurrency(calculations.saldo)}
+                <div className="relative overflow-hidden bg-gradient-to-br from-primary-600 to-slate-900 rounded-3xl p-6 text-white shadow-xl shadow-primary-900/10 flex flex-col h-full">
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                        <div>
+                            <div className="text-primary-100 font-medium mb-1 flex items-center gap-2">
+                                <Wallet size={18} />
+                                <span>Saldo do Mês</span>
+                            </div>
+                            <div className="text-3xl font-bold tracking-tight">
+                                {formatCurrency(calculations.saldo)}
+                            </div>
                         </div>
 
-                        <div className="flex flex-col gap-2 text-sm font-medium">
-                            <div className="flex items-center justify-between bg-white/10 px-3 py-2 rounded-xl backdrop-blur-sm">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                                        <ArrowUpRight size={14} />
+                        <div className="flex flex-col gap-3 mt-4">
+                            <div className="flex items-center justify-between bg-white/10 px-4 py-3 rounded-xl backdrop-blur-sm transition-colors hover:bg-white/20">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                                        <ArrowUpRight size={16} />
                                     </div>
-                                    <div className="text-primary-200 text-xs">Receitas</div>
+                                    <div className="text-primary-100 font-medium text-sm">Receitas</div>
                                 </div>
-                                <div className="text-emerald-400">{formatCurrency(calculations.rec)}</div>
+                                <div className="text-emerald-400 font-bold">{formatCurrency(calculations.rec)}</div>
                             </div>
 
-                            <div className="flex items-center justify-between bg-white/10 px-3 py-2 rounded-xl backdrop-blur-sm">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
-                                        <ArrowDownRight size={14} />
+                            <div className="flex items-center justify-between bg-white/10 px-4 py-3 rounded-xl backdrop-blur-sm transition-colors hover:bg-white/20">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
+                                        <ArrowDownRight size={16} />
                                     </div>
-                                    <div className="text-primary-200 text-xs">Despesas</div>
+                                    <div className="text-primary-100 font-medium text-sm">Despesas</div>
                                 </div>
-                                <div className="text-red-400">{formatCurrency(calculations.desp)}</div>
+                                <div className="text-red-400 font-bold">{formatCurrency(calculations.desp)}</div>
                             </div>
                         </div>
                     </div>
 
                     {/* Decorative Background Elements */}
-                    <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-primary-500 rounded-full blur-3xl opacity-20"></div>
+                    <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-primary-500 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
                 </div>
 
-                {/* AC-4 Total Card (New) */}
-                <div className="bg-gradient-to-br from-indigo-500 to-violet-700 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden flex flex-col justify-between">
-                    <div className="relative z-10">
-                        <div className="text-indigo-100 font-medium mb-2 flex items-center gap-2">
-                            <DollarSign size={20} />
-                            <span>Total AC-4</span>
-                        </div>
-                        <div className="text-3xl font-bold mb-1 tracking-tight">
-                            {formatCurrency(calculations.ac4Total)}
-                        </div>
-                        <p className="text-indigo-200 text-xs">
-                            {selectedMonth === 'Todos' ? 'Total Acumulado' : `Recebido em ${selectedMonth}`}
-                        </p>
-                    </div>
-                    <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
+                {/* Extraordinary Hours Card (New) */}
+                <div className="lg:col-span-1">
+                    <ExtraordinaryHoursCard
+                        shifts={shifts}
+                        selectedMonth={selectedMonth}
+                        ac4Total={scalesInsights.ac4Total}
+                        ac4Hours={scalesInsights.ac4Hours}
+                    />
                 </div>
 
                 {/* Scales / Next Shift Widget */}
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col justify-between">
-                    <div>
-                        <h3 className="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                            <Calendar className="text-indigo-500" size={20} />
-                            Próximo Plantão
-                        </h3>
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col h-full">
+                    <h3 className="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                        <Calendar className="text-indigo-500" size={20} />
+                        Próximos Plantões
+                    </h3>
 
-                        {scalesInsights.nextShift ? (
-                            <div className="mt-2">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-3xl font-bold text-slate-800 dark:text-white">
-                                        {scalesInsights.nextShift.date.split('-')[2]}
-                                    </span>
-                                    <span className="text-sm uppercase font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded">
-                                        {format(parseISO(scalesInsights.nextShift.date), 'MMM', { locale: ptBR })}
-                                    </span>
-                                </div>
-                                <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">
-                                    {format(parseISO(scalesInsights.nextShift.date), 'EEEE', { locale: ptBR })}
-                                </div>
-                                <div className="font-medium text-slate-700 dark:text-gray-200">
-                                    {scalesInsights.nextShift.shiftTypeSnapshot.name}
-                                </div>
-                                <div className="flex items-center gap-1 text-xs text-slate-400 mt-2">
-                                    <Clock size={12} />
-                                    {scalesInsights.nextShift.shiftTypeSnapshot.startTime} - {scalesInsights.nextShift.shiftTypeSnapshot.endTime}
-                                </div>
+                    <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
+                        {scalesInsights.upcomingShifts.length > 0 ? (
+                            <div className="space-y-4">
+                                {scalesInsights.upcomingShifts.map((shift, index) => (
+                                    <div key={index} className="flex items-start gap-4 p-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-2xl transition-colors border border-transparent hover:border-slate-100 dark:hover:border-slate-700/50">
+                                        <div className="flex flex-col items-center justify-center min-w-[3.5rem] bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl p-2.5 text-center border border-indigo-100 dark:border-indigo-500/10">
+                                            <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">{format(parseISO(shift.date), 'MMM', { locale: ptBR })}</span>
+                                            <span className="text-2xl font-bold text-slate-800 dark:text-white leading-none mt-0.5">{shift.date.split('-')[2]}</span>
+                                        </div>
+                                        <div className="flex-1 py-0.5">
+                                            <div className="font-bold text-slate-700 dark:text-slate-100 text-sm mb-0.5 line-clamp-1">{shift.shiftTypeSnapshot.name}</div>
+                                            <div className="text-xs text-slate-500 dark:text-slate-400 capitalize mb-2 font-medium">
+                                                {format(parseISO(shift.date), 'EEEE', { locale: ptBR })}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700">
+                                                    <Clock size={10} />
+                                                    {shift.shiftTypeSnapshot.startTime} - {shift.shiftTypeSnapshot.endTime}
+                                                </div>
+                                                {shift.scaleCategory && (
+                                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${shift.scaleCategory === 'AC-4'
+                                                        ? 'text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-900/30 border-violet-200 dark:border-violet-800/30'
+                                                        : shift.scaleCategory === 'Diário'
+                                                            ? 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800/30'
+                                                            : 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                                                        }`}>
+                                                        {shift.scaleCategory}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         ) : (
-                            <div className="text-slate-400 text-sm py-4">
-                                Nenhum plantão agendado em breve.
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400 text-sm py-8 gap-3">
+                                <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center">
+                                    <Calendar size={24} className="opacity-40" />
+                                </div>
+                                <span className="max-w-[150px] text-center opacity-80">Nenhum plantão agendado para os próximos dias.</span>
                             </div>
                         )}
                     </div>
-
-
                 </div>
             </div>
 
@@ -439,9 +470,15 @@ export const Dashboard = () => {
                                     paddingAngle={5}
                                     dataKey="value"
                                 >
-                                    {extraCharts.categoryData.map((_entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
+                                    {extraCharts.categoryData.map((entry, index) => {
+                                        const catList = settings.categories['Despesa'] || [];
+                                        const catItem = Array.isArray(catList)
+                                            ? catList.find((c: any) => c.name === entry.name || c === entry.name)
+                                            : null;
+                                        const color = typeof catItem === 'object' ? catItem?.color : COLORS[index % COLORS.length];
+
+                                        return <Cell key={`cell-${index}`} fill={color || COLORS[index % COLORS.length]} />;
+                                    })}
                                 </Pie>
                                 <Tooltip formatter={(val: number | undefined) => formatCurrency(val || 0)} />
                                 <Legend />

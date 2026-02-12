@@ -56,8 +56,8 @@ export const ScaleForm: React.FC<ScaleFormProps> = ({ initialData, onSubmit, onC
             startDate: Timestamp.fromDate(localStartDate),
             cycleLength,
             defaultShiftTypeId,
-            customStartTime: (category === 'AC-4' && useCustomTime) ? customStartTime : undefined,
-            customEndTime: (category === 'AC-4' && useCustomTime) ? customEndTime : undefined,
+            customStartTime: (category === 'AC-4' && useCustomTime) ? customStartTime : null,
+            customEndTime: (category === 'AC-4' && useCustomTime) ? customEndTime : null,
             isActive: true,
             cycleMap: {} // Simples por enquanto
         });

@@ -1,5 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
+import { signOut } from 'firebase/auth';
+import { auth } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const ProtectedRoute: React.FC<{ children: React.ReactNode, requireAdmin?: boolean }> = ({ children, requireAdmin = false }) => {
@@ -14,6 +16,12 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode, requireAdmin?
     }
 
     if (!currentUser) {
+        return <Navigate to="/login" />;
+    }
+
+    // 🚫 Check if user deleted (no profile in Firestore)
+    if (!userProfile) {
+        signOut(auth);
         return <Navigate to="/login" />;
     }
 

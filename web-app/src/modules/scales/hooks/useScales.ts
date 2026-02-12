@@ -44,9 +44,9 @@ export const useScales = (userId: string | undefined) => {
     useEffect(() => {
         if (scales.length > 0) {
             const start = new Date(viewDatestamp);
-            start.setMonth(start.getMonth() - 2); // 2 meses antes
+            start.setMonth(start.getMonth() - 6); // 6 meses antes (buffer maior para histórico anual)
             const end = new Date(viewDatestamp);
-            end.setMonth(end.getMonth() + 4); // 4 meses depois
+            end.setMonth(end.getMonth() + 12); // 12 meses depois (buffer para planejamento anual)
 
             fetchShifts(start, end);
         }

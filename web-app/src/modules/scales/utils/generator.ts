@@ -84,25 +84,15 @@ export const generateShifts = (
     // Loop dia a dia
     while (!isAfter(currentIterDate, endOfRange)) {
         const dayIndex = differenceInDays(currentIterDate, startOfScale);
-
-        // Posição no ciclo (0 a cycleLength - 1)
-        // Ex 12x36 (cycle 2): Dia 0=Trabalha, Dia 1=Folga. 
-        // dayIndex 0 % 2 = 0 (Trabalha)
-        // dayIndex 1 % 2 = 1 (Folga)
-        // dayIndex 2 % 2 = 0 (Trabalha)
         const cyclePosition = dayIndex % scale.cycleLength;
-        // O operador % pode retornar negativo se dayIndex for negativo, mas garantimos que current >= startOfScale
 
         let shiftTypeIdToAdd: string | null = null;
 
         if (['12x36', '24x72', '6x18', '24x96'].includes(scale.patternType)) {
-            // Padrões simples: Trabalha no dia 0 do ciclo
             if (cyclePosition === 0) {
                 shiftTypeIdToAdd = scale.defaultShiftTypeId;
             }
         } else if (scale.patternType === 'custom' && scale.cycleMap) {
-            // Padrão complexo mapeado
-            // Ex: cycleMap { 0: 'D12', 1: 'N12' } para escala D-N-F-F (cycleLength 4)
             if (scale.cycleMap[cyclePosition]) {
                 shiftTypeIdToAdd = scale.cycleMap[cyclePosition];
             }
@@ -111,24 +101,49 @@ export const generateShifts = (
         if (shiftTypeIdToAdd) {
             const shiftType = getShiftTypeById(shiftTypeIdToAdd);
             if (shiftType) {
-                // Calcular data/hora inicio e fim reais baseado na hora do turno
-                const [startHour, startMinute] = shiftType.startTime.split(':').map(Number);
-                const shiftStartDateTime = addHours(addDays(currentIterDate, 0), 0); // Clone date
+                // Calcular data/hora inicio e fim reais
+                let startTimeStr = shiftType.startTime;
+                let endTimeStr = shiftType.endTime;
+                let hours = shiftType.hours;
+
+                // Override com horários customizados da escala se existirem
+                if (scale.customStartTime && scale.customEndTime) {
+                    startTimeStr = scale.customStartTime;
+                    endTimeStr = scale.customEndTime;
+
+                    // Re-calcular horas se forem customizados
+                    const [sH, sM] = startTimeStr.split(':').map(Number);
+                    const [eH, eM] = endTimeStr.split(':').map(Number);
+                    const startDateObj = new Date(2000, 0, 1, sH, sM);
+                    let endDateObj = new Date(2000, 0, 1, eH, eM);
+                    if (endDateObj < startDateObj) {
+                        endDateObj = addDays(endDateObj, 1);
+                    }
+                    hours = (endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60);
+                }
+
+                const [startHour, startMinute] = startTimeStr.split(':').map(Number);
+                const shiftStartDateTime = new Date(currentIterDate);
                 shiftStartDateTime.setHours(startHour, startMinute, 0, 0);
 
                 // Fim: Inicio + Horas de duração
-                const shiftEndDateTime = addHours(shiftStartDateTime, shiftType.hours);
+                const shiftEndDateTime = addHours(shiftStartDateTime, hours);
 
                 shifts.push({
-                    id: `${format(currentIterDate, 'yyyy-MM-dd')}-${scale.id}`, // ID determinístico `${date}-${scaleId}`
+                    id: `${format(currentIterDate, 'yyyy-MM-dd')}-${scale.id}`,
                     userId: scale.userId,
                     scaleId: scale.id,
                     date: format(currentIterDate, 'yyyy-MM-dd'),
                     startTime: Timestamp.fromDate(shiftStartDateTime),
                     endTime: Timestamp.fromDate(shiftEndDateTime),
                     shiftTypeId: shiftTypeIdToAdd,
-                    shiftTypeSnapshot: shiftType,
-                    scaleCategory: scale.category, // Propagate Category
+                    shiftTypeSnapshot: {
+                        ...shiftType,
+                        startTime: startTimeStr,
+                        endTime: endTimeStr,
+                        hours: hours
+                    },
+                    scaleCategory: scale.category,
                     isManualOverride: false,
                     status: isBefore(currentIterDate, today) ? 'completed' : 'scheduled'
                 });

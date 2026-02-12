@@ -28,6 +28,10 @@ export const ScaleForm: React.FC<ScaleFormProps> = ({ initialData, onSubmit, onC
     });
     const [defaultShiftTypeId, setDefaultShiftTypeId] = useState(initialData?.defaultShiftTypeId || DEFAULT_SHIFT_TYPES[0].id);
 
+    const [useCustomTime, setUseCustomTime] = useState(!!(initialData?.customStartTime && initialData?.customEndTime));
+    const [customStartTime, setCustomStartTime] = useState(initialData?.customStartTime || '08:00');
+    const [customEndTime, setCustomEndTime] = useState(initialData?.customEndTime || '20:00');
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -52,6 +56,8 @@ export const ScaleForm: React.FC<ScaleFormProps> = ({ initialData, onSubmit, onC
             startDate: Timestamp.fromDate(localStartDate),
             cycleLength,
             defaultShiftTypeId,
+            customStartTime: (category === 'AC-4' && useCustomTime) ? customStartTime : undefined,
+            customEndTime: (category === 'AC-4' && useCustomTime) ? customEndTime : undefined,
             isActive: true,
             cycleMap: {} // Simples por enquanto
         });
@@ -136,6 +142,53 @@ export const ScaleForm: React.FC<ScaleFormProps> = ({ initialData, onSubmit, onC
                 </select>
             </div>
 
+            {
+                category === 'AC-4' && (
+                    <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg border border-emerald-100 dark:border-emerald-800/30 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="font-bold text-emerald-800 dark:text-emerald-300">
+                                Cálculo AC-4
+                            </span>
+                        </div>
+
+                        <div className="mb-3">
+                            <label className="flex items-center space-x-2 text-sm text-emerald-800 dark:text-emerald-200 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={useCustomTime}
+                                    onChange={(e) => setUseCustomTime(e.target.checked)}
+                                    className="rounded text-emerald-600 focus:ring-emerald-500"
+                                />
+                                <span>Informar horário real (Entrada/Saída)</span>
+                            </label>
+                        </div>
+
+                        {useCustomTime && (
+                            <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2">
+                                <div>
+                                    <label className="text-xs text-emerald-700 dark:text-emerald-300 block mb-1">Entrada</label>
+                                    <input
+                                        type="time"
+                                        value={customStartTime}
+                                        onChange={(e) => setCustomStartTime(e.target.value)}
+                                        className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 border"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-emerald-700 dark:text-emerald-300 block mb-1">Saída</label>
+                                    <input
+                                        type="time"
+                                        value={customEndTime}
+                                        onChange={(e) => setCustomEndTime(e.target.value)}
+                                        className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 border"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )
+            }
+
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                     {isOneOff ? "Data do Plantão" : "Data de Início do Ciclo (Dia trabalhado)"}
@@ -182,6 +235,6 @@ export const ScaleForm: React.FC<ScaleFormProps> = ({ initialData, onSubmit, onC
                     </button>
                 </div>
             </div>
-        </form>
+        </form >
     );
 };

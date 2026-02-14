@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Clock, Calendar, Trash2, DollarSign, Settings, Copy } from 'lucide-react';
+import { X, Clock, Calendar, Trash2, DollarSign, Copy } from 'lucide-react';
 import { format, addDays, differenceInMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { ShiftEvent } from '../types';
@@ -22,7 +22,7 @@ interface ShiftDetailsModalProps {
 export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({ shift, scaleName, onClose, onDelete, onEditScale, onDuplicateScale }) => {
     const { currentUser } = useAuth();
     const [currentShift, setCurrentShift] = useState<ShiftEvent>(shift); // Use local state to update UI immediately without re-fetch
-    const [useManualTime, setUseManualTime] = useState(false);
+    const [useManualTime, setUseManualTime] = useState(!!shift.isManualOverride);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
     const [confirmAction, setConfirmAction] = useState<{ message: string, onConfirm: () => void, type?: 'danger' | 'info' } | null>(null);
 
@@ -105,7 +105,9 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({ shift, sca
                         tipo: 'Receita',
                         valor: value,
                         categoria: 'AC-4',
-                        descricao: `Serviço AC-4 - ${shift.shiftTypeSnapshot.name} ${useManualTime ? '(Horário Real)' : ''}`,
+                        descricao: useManualTime
+                            ? `Serviço AC-4 - ${shift.shiftTypeSnapshot.name} (${format(start, 'HH:mm')} - ${format(end, 'HH:mm')})`
+                            : `Serviço AC-4 - ${shift.shiftTypeSnapshot.name}`,
                         data: shift.date, // YYYY-MM-DD
                         status: 'Pendente', // Default to Pending for AC-4
                         recorrente: false,
@@ -351,13 +353,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({ shift, sca
                                         <span className="hidden sm:inline">Duplicar</span>
                                     </button>
                                 )}
-                                <button
-                                    onClick={() => onEditScale(shift.scaleId!)}
-                                    className="flex items-center justify-center px-2 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors min-h-[44px] sm:min-h-[36px]"
-                                >
-                                    <Settings size={14} className="sm:mr-1" />
-                                    <span className="hidden sm:inline">Configurar</span>
-                                </button>
+
                             </>
                         )}
 

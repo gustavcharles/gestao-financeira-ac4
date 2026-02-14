@@ -21,18 +21,7 @@ export default defineConfig({
         description: 'Aplicativo de controle financeiro',
         theme_color: '#ffffff',
         start_url: '/',
-        icons: [
-          {
-            src: 'logo.png', // Using existing logo
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'logo.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
+        icons: [] // Logo removido pois o arquivo nao existe
       }
     })
   ],

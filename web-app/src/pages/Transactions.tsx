@@ -162,6 +162,26 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
         setIsFormOpen(true);
     };
 
+    const headerInfo = useMemo(() => {
+        switch (typeFilter) {
+            case 'Receita':
+                return {
+                    title: 'Transações Receitas',
+                    subtitle: 'Lance todas as suas receitas aqui'
+                };
+            case 'Despesa':
+                return {
+                    title: 'Transações Despesas',
+                    subtitle: 'Lance todas as suas despesas aqui'
+                };
+            default:
+                return {
+                    title: 'Transações',
+                    subtitle: 'Gerencie suas receitas e despesas'
+                };
+        }
+    }, [typeFilter]);
+
     if (loading) return <div className="p-10 text-center">Carregando...</div>;
 
     return (
@@ -169,8 +189,8 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Transações</h2>
-                    <p className="text-slate-500 dark:text-slate-400">Gerencie suas receitas e despesas</p>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{headerInfo.title}</h2>
+                    <p className="text-slate-500 dark:text-slate-400">{headerInfo.subtitle}</p>
                 </div>
                 <div className="flex gap-2">
                     <button

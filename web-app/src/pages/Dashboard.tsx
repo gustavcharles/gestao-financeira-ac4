@@ -52,14 +52,33 @@ export const Dashboard = () => {
 
     // Generate Month Options
     const months = useMemo(() => {
-        const uniqueMonths = Array.from(new Set(transactions.map(t => t.mes_referencia)));
+        const uniqueMonths = new Set<string>();
+
+        // 1. Add months from Transactions (Financial)
+        transactions.forEach(t => uniqueMonths.add(t.mes_referencia));
+
+        // 2. Add months from Shifts (Work) to ensure they appear even if unpaid yet
+        if (shifts) {
+            shifts.forEach(s => {
+                // Ensure we handle shifts with valid dates
+                if (s.date) {
+                    try {
+                        const shiftDate = parseISO(s.date);
+                        const monthStr = getMonthFromDate(shiftDate);
+                        uniqueMonths.add(monthStr);
+                    } catch (e) {
+                        console.warn('Invalid shift date:', s.date);
+                    }
+                }
+            });
+        }
 
         const monthMap: { [key: string]: number } = {
             'Janeiro': 0, 'Fevereiro': 1, 'Março': 2, 'Abril': 3, 'Maio': 4, 'Junho': 5,
             'Julho': 6, 'Agosto': 7, 'Setembro': 8, 'Outubro': 9, 'Novembro': 10, 'Dezembro': 11
         };
 
-        return uniqueMonths.sort((a, b) => {
+        return Array.from(uniqueMonths).sort((a, b) => {
             const [monthA, yearA] = a.split(' ');
             const [monthB, yearB] = b.split(' ');
 
@@ -68,7 +87,7 @@ export const Dashboard = () => {
             }
             return (monthMap[monthB] || 0) - (monthMap[monthA] || 0); // Descending Month (Newest first)
         });
-    }, [transactions]);
+    }, [transactions, shifts]);
 
     // Set default month to current if available and not set
     useEffect(() => {

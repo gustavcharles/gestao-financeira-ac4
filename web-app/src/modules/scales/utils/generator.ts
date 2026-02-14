@@ -48,10 +48,34 @@ export const generateShifts = (
             // Lógica mais flexível: Se o dia único está entre start e end (inclusive)
             const shiftType = getShiftTypeById(scale.defaultShiftTypeId);
             if (shiftType) {
-                const [startHour, startMinute] = shiftType.startTime.split(':').map(Number);
+                let startTimeStr = shiftType.startTime;
+                let endTimeStr = shiftType.endTime;
+                let hours = shiftType.hours;
+                let isManualOverride = false;
+
+                // Override com horários customizados da escala se existirem (ex: AC-4)
+                if (scale.customStartTime && scale.customEndTime) {
+                    startTimeStr = scale.customStartTime;
+                    endTimeStr = scale.customEndTime;
+                    isManualOverride = true;
+
+                    // Re-calcular horas se forem customizados
+                    const [sH, sM] = startTimeStr.split(':').map(Number);
+                    const [eH, eM] = endTimeStr.split(':').map(Number);
+                    const startDateObj = new Date(2000, 0, 1, sH, sM);
+                    let endDateObj = new Date(2000, 0, 1, eH, eM);
+                    if (endDateObj < startDateObj) {
+                        endDateObj = addDays(endDateObj, 1);
+                    }
+                    hours = (endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60);
+                }
+
+                const [startHour, startMinute] = startTimeStr.split(':').map(Number);
                 const shiftStartDateTime = addHours(addDays(scaleStartDate, 0), 0);
                 shiftStartDateTime.setHours(startHour, startMinute, 0, 0);
-                const shiftEndDateTime = addHours(shiftStartDateTime, shiftType.hours);
+
+                // Fim: Inicio + Horas (calculadas ou do tipo)
+                const shiftEndDateTime = addHours(shiftStartDateTime, hours);
 
                 return [{
                     id: `${format(scaleStartDate, 'yyyy-MM-dd')}-${scale.id}`,
@@ -63,10 +87,13 @@ export const generateShifts = (
                     shiftTypeId: scale.defaultShiftTypeId,
                     shiftTypeSnapshot: {
                         ...shiftType,
+                        startTime: startTimeStr, // Update snapshot with actual times
+                        endTime: endTimeStr,
+                        hours: hours,
                         isAC4: scale.category === 'AC-4' || shiftType.isAC4
                     },
                     scaleCategory: scale.category, // Propagate Category
-                    isManualOverride: false,
+                    isManualOverride: isManualOverride,
                     status: isBefore(shiftStartDateTime, today) ? 'completed' : 'scheduled'
                 }];
             }

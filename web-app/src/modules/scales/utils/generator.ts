@@ -31,35 +31,43 @@ export const generateShifts = (
 
     // A data base da escala (o "Dia Zero" do ciclo)
     const scaleStartDate = scale.startDate.toDate();
+
+    // Determine the effective end date for generation
+    let effectiveEndRange = endOfRange;
+    if (scale.endDate) {
+        const scaleEndDate = startOfDay(scale.endDate.toDate());
+        if (isBefore(scaleEndDate, effectiveEndRange)) {
+            effectiveEndRange = scaleEndDate;
+        }
+    }
+
     const startOfScale = startOfDay(scaleStartDate);
 
     // Se a range pedida é toda anterior ao inicio da escala, não gera nada
-    if (isBefore(endOfRange, startOfScale)) {
+    if (isBefore(effectiveEndRange, startOfScale)) {
         return [];
     }
 
-    // Lógica para Plantão Único (One Off)
-    if (scale.isOneOff) {
-        // Verifica se a data do plantão único (scaleStartDate) está dentro do range solicitado
-        if ((isAfter(scaleStartDate, rangeStart) || scaleStartDate.getTime() === rangeStart.getTime()) &&
-            (isBefore(scaleStartDate, rangeEnd) || scaleStartDate.getTime() === rangeEnd.getTime()) ||
-            (format(scaleStartDate, 'yyyy-MM-dd') === format(rangeStart, 'yyyy-MM-dd'))) {
+    // Se a range começa depois do fim da escala, também nada
+    if (isAfter(startOfRange, effectiveEndRange)) {
+        return [];
+    }
 
-            // Lógica mais flexível: Se o dia único está entre start e end (inclusive)
+    // ... (rest of the code)
+
+    // Handle one-off scales (single shift on startDate only)
+    if (scale.isOneOff) {
+        // Check if startDate is within the range
+        if (!isAfter(startOfScale, effectiveEndRange) && !isBefore(startOfScale, startOfRange)) {
             const shiftType = getShiftTypeById(scale.defaultShiftTypeId);
             if (shiftType) {
-                let startTimeStr = shiftType.startTime;
-                let endTimeStr = shiftType.endTime;
+                // Use custom times if available, otherwise use shift type defaults
+                let startTimeStr = scale.customStartTime || shiftType.startTime;
+                let endTimeStr = scale.customEndTime || shiftType.endTime;
                 let hours = shiftType.hours;
-                let isManualOverride = false;
 
-                // Override com horários customizados da escala se existirem (ex: AC-4)
+                // Re-calculate hours if custom times are used
                 if (scale.customStartTime && scale.customEndTime) {
-                    startTimeStr = scale.customStartTime;
-                    endTimeStr = scale.customEndTime;
-                    isManualOverride = true;
-
-                    // Re-calcular horas se forem customizados
                     const [sH, sM] = startTimeStr.split(':').map(Number);
                     const [eH, eM] = endTimeStr.split(':').map(Number);
                     const startDateObj = new Date(2000, 0, 1, sH, sM);
@@ -71,48 +79,44 @@ export const generateShifts = (
                 }
 
                 const [startHour, startMinute] = startTimeStr.split(':').map(Number);
-                const shiftStartDateTime = addHours(addDays(scaleStartDate, 0), 0);
+                const shiftStartDateTime = new Date(startOfScale);
                 shiftStartDateTime.setHours(startHour, startMinute, 0, 0);
 
-                // Fim: Inicio + Horas (calculadas ou do tipo)
                 const shiftEndDateTime = addHours(shiftStartDateTime, hours);
 
-                return [{
-                    id: `${format(scaleStartDate, 'yyyy-MM-dd')}-${scale.id}`,
+                const dateStr = format(startOfScale, 'yyyy-MM-dd');
+                const shiftId = `${dateStr}-${scale.id}`;
+
+                shifts.push({
+                    id: shiftId,
                     userId: scale.userId,
                     scaleId: scale.id,
-                    date: format(scaleStartDate, 'yyyy-MM-dd'),
+                    date: dateStr,
                     startTime: Timestamp.fromDate(shiftStartDateTime),
                     endTime: Timestamp.fromDate(shiftEndDateTime),
                     shiftTypeId: scale.defaultShiftTypeId,
                     shiftTypeSnapshot: {
                         ...shiftType,
-                        startTime: startTimeStr, // Update snapshot with actual times
+                        startTime: startTimeStr,
                         endTime: endTimeStr,
                         hours: hours,
                         isAC4: scale.category === 'AC-4' || shiftType.isAC4
                     },
-                    scaleCategory: scale.category, // Propagate Category
-                    isManualOverride: isManualOverride,
-                    status: isBefore(shiftStartDateTime, today) ? 'completed' : 'scheduled'
-                }];
+                    scaleCategory: scale.category,
+                    status: 'confirmed',
+                    isManualOverride: false
+                });
             }
         }
-        return []; // Se não estiver no range, retorna vazio
+        // For one-off scales, return immediately after creating the single shift
+        return shifts;
     }
 
-    // Definir o dia de inicio da iteração:
-    // Se a range começa depois da escala, podemos pular alguns ciclos para otimizar?
-    // Sim, mas precisamos alinhar com o ciclo.
-    // Vamos iterar do dia da rangeStart (ou scaleStart se rangeStart for antes) até rangeEnd.
-
+    // Initialize iteration date
     let currentIterDate = isBefore(startOfRange, startOfScale) ? startOfScale : startOfRange;
 
-    // Mas cuidado: currentIterDate precisa estar alinhado com o ciclo se rangeStart > startOfScale
-    // O ciclo é baseado em differenceInDays(current, startOfScale) % cycleLength
-
     // Loop dia a dia
-    while (!isAfter(currentIterDate, endOfRange)) {
+    while (!isAfter(currentIterDate, effectiveEndRange)) {
         const dayIndex = differenceInDays(currentIterDate, startOfScale);
         const cyclePosition = dayIndex % scale.cycleLength;
 

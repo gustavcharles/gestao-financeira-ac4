@@ -107,7 +107,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             case 'Diário':
             default:
                 // For Diário or unknown, preserve the Semantic Color of the Shift Type (Day=Amber, Night=Blue, 24h=Red)
-                return shift.shiftTypeSnapshot.color;
+                return shift.shiftTypeSnapshot?.color || '#6B7280'; // Fallback to gray if snapshot missing
         }
     };
 
@@ -150,7 +150,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             className="p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full min-h-[44px] min-w-[44px] flex items-center justify-center"
                             aria-label="Anterior"
                         >
-                            <span className="text-xl">←</span>
+                            <span className="text-xl text-gray-900 dark:text-white">←</span>
                         </button>
                         <button
                             onClick={today}
@@ -163,7 +163,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             className="p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full min-h-[44px] min-w-[44px] flex items-center justify-center"
                             aria-label="Próximo"
                         >
-                            <span className="text-xl">→</span>
+                            <span className="text-xl text-gray-900 dark:text-white">→</span>
                         </button>
                     </div>
                 </div>
@@ -204,22 +204,39 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             </div>
 
                             <div className="flex flex-col gap-1 mt-1">
-                                {shiftsForDay.map(shift => (
-                                    <div
-                                        key={shift.id}
-                                        onClick={(e) => { e.stopPropagation(); onShiftClick && onShiftClick(shift); }}
-                                        className="p-1 rounded text-[10px] sm:text-xs font-semibold text-white shadow-sm overflow-hidden text-ellipsis whitespace-nowrap hover:opacity-90 transition-opacity min-h-[24px] flex items-center"
-                                        style={{ backgroundColor: getShiftColor(shift) }}
-                                        title={`${shift.shiftTypeSnapshot.name} - ${shift.shiftTypeSnapshot.startTime} às ${shift.shiftTypeSnapshot.endTime}`}
-                                    >
-                                        <div className="flex justify-between items-center w-full px-1">
-                                            <span>{shift.shiftTypeSnapshot.code}</span>
-                                            <span className="opacity-75 font-normal ml-1 hidden sm:inline">
-                                                {shift.shiftTypeSnapshot.startTime}
-                                            </span>
+                                {shiftsForDay.map(shift => {
+                                    // Get tooltip with actual times if manually overridden
+                                    const getTooltip = () => {
+                                        if (!shift.shiftTypeSnapshot) return 'Plantão';
+
+                                        if (shift.isManualOverride && shift.startTime && shift.endTime) {
+                                            // Use actual manual times
+                                            const start = shift.startTime.toDate();
+                                            const end = shift.endTime.toDate();
+                                            return `${shift.shiftTypeSnapshot.name} - ${format(start, 'HH:mm')} às ${format(end, 'HH:mm')}`;
+                                        }
+
+                                        // Use original shift type times
+                                        return `${shift.shiftTypeSnapshot.name} - ${shift.shiftTypeSnapshot.startTime} às ${shift.shiftTypeSnapshot.endTime}`;
+                                    };
+
+                                    return (
+                                        <div
+                                            key={shift.id}
+                                            onClick={(e) => { e.stopPropagation(); onShiftClick && onShiftClick(shift); }}
+                                            className="p-1 rounded text-[10px] sm:text-xs font-semibold text-white shadow-sm overflow-hidden text-ellipsis whitespace-nowrap hover:opacity-90 transition-opacity min-h-[24px] flex items-center"
+                                            style={{ backgroundColor: getShiftColor(shift) }}
+                                            title={getTooltip()}
+                                        >
+                                            <div className="flex justify-between items-center w-full px-1">
+                                                <span>{shift.shiftTypeSnapshot?.code || 'N/A'}</span>
+                                                <span className="opacity-75 font-normal ml-1 hidden sm:inline">
+                                                    {shift.shiftTypeSnapshot?.startTime || ''}
+                                                </span>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     );

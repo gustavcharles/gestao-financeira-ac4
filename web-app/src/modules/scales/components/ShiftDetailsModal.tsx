@@ -10,21 +10,25 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { ScaleService } from '../services/scaleService';
 import { Timestamp } from 'firebase/firestore';
 
+import { RecurrentDeleteModal } from './RecurrentDeleteModal';
+
 interface ShiftDetailsModalProps {
     shift: ShiftEvent;
     scaleName?: string;
+    isRecurrent?: boolean;
     onClose: () => void;
-    onDelete?: (shiftId: string) => void;
+    onDelete?: (shiftId: string, mode?: 'single' | 'following' | 'all') => void;
     onEditScale?: (scaleId: string) => void;
     onDuplicateScale?: (scaleId: string, newStartDate: Date) => void;
 }
 
-export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({ shift, scaleName, onClose, onDelete, onEditScale, onDuplicateScale }) => {
+export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({ shift, scaleName, isRecurrent, onClose, onDelete, onEditScale, onDuplicateScale }) => {
     const { currentUser } = useAuth();
     const [currentShift, setCurrentShift] = useState<ShiftEvent>(shift); // Use local state to update UI immediately without re-fetch
     const [useManualTime, setUseManualTime] = useState(!!shift.isManualOverride);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
     const [confirmAction, setConfirmAction] = useState<{ message: string, onConfirm: () => void, type?: 'danger' | 'info' } | null>(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
     // Initialize with formatted string HH:mm
     const [manualStartTime, setManualStartTime] = useState(() => {
@@ -52,8 +56,6 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({ shift, sca
         const hours = Math.floor(diffMinutes / 60);
         return `${hours}h`;
     };
-
-    if (!currentShift) return null;
 
     // Helper to get effective dates based on inputs
     const getEffectiveDates = () => {
@@ -154,24 +156,65 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({ shift, sca
             setCurrentShift(updatedShift); // Update UI immediately
 
             setFeedback({ type: 'success', message: "Horários atualizados com sucesso!" });
-            // onClose();
+            // Don't auto-close - user may want to generate revenue after
         } catch (e: any) {
             console.error(e);
             setFeedback({ type: 'error', message: `Erro ao salvar horários: ${e.message || 'Erro desconhecido'}` });
         }
     };
 
+    const handleClose = async () => {
+        // Check if there are unsaved manual time changes
+        if (useManualTime) {
+            const savedStartTime = getFormattedTime(currentShift.startTime);
+            const savedEndTime = getFormattedTime(currentShift.endTime);
 
-    const handleDelete = () => {
-        setConfirmAction({
-            message: "Deseja realmente remover este plantão? \n(Isso criará uma exceção na sua escala)",
-            type: 'danger',
-            onConfirm: () => {
-                setConfirmAction(null);
-                if (onDelete) onDelete(currentShift.id);
+            // Compare current input values with saved values
+            const hasUnsavedChanges = manualStartTime !== savedStartTime || manualEndTime !== savedEndTime;
+
+            if (hasUnsavedChanges) {
+                // Auto-save before closing
+                try {
+                    const { start, end } = getEffectiveDates();
+                    const updatedShift = {
+                        ...currentShift,
+                        startTime: Timestamp.fromDate(start),
+                        endTime: Timestamp.fromDate(end),
+                        isManualOverride: true
+                    };
+                    await ScaleService.saveShiftEvent(updatedShift);
+                } catch (e) {
+                    console.error('Erro ao salvar alterações antes de fechar:', e);
+                    // Still close even if save fails
+                }
             }
-        });
+        }
+        onClose();
     };
+
+
+    const handleDeleteClick = () => {
+        if (isRecurrent) {
+            setIsDeleteModalOpen(true);
+        } else {
+            // Default behavior for single/manual events
+            setConfirmAction({
+                message: "Deseja realmente remover este plantão?",
+                type: 'danger',
+                onConfirm: () => {
+                    setConfirmAction(null);
+                    if (onDelete) onDelete(currentShift.id, 'single');
+                }
+            });
+        }
+    };
+
+    const handleConfirmRecurrentDelete = (mode: 'single' | 'following' | 'all') => {
+        setIsDeleteModalOpen(false);
+        if (onDelete) onDelete(currentShift.id, mode);
+    };
+
+    if (!currentShift) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -333,7 +376,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({ shift, sca
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {onDelete && (
                             <button
-                                onClick={handleDelete}
+                                onClick={handleDeleteClick}
                                 className="flex items-center justify-center px-2 py-2 text-xs sm:text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors min-h-[44px] sm:min-h-[36px]"
                             >
                                 <Trash2 size={14} className="sm:mr-1" />
@@ -358,7 +401,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({ shift, sca
                         )}
 
                         <button
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="flex items-center justify-center px-2 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600 min-h-[44px] sm:min-h-[36px]"
                         >
                             <X size={14} className="sm:mr-1" />
@@ -368,7 +411,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({ shift, sca
                 </div>
             </div>
 
-            {/* Custom Confirmation Overlay */}
+            {/* Custom Confirmation Overlay (for non-recurrent or revenue) */}
             {confirmAction && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-[1px] animate-in fade-in duration-200">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl max-w-sm w-full border border-gray-200 dark:border-gray-600 transform transition-all scale-100">
@@ -398,6 +441,14 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({ shift, sca
                     </div>
                 </div>
             )}
+
+            {/* Recurrent Delete Modal */}
+            <RecurrentDeleteModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleConfirmRecurrentDelete}
+            />
+
             {/* Duplication Modal Overlay */}
             {isDuplicating && (
                 <div className="absolute inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-[1px] rounded-lg">

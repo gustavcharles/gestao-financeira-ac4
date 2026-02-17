@@ -62,6 +62,7 @@ export interface ShiftScale {
     isActive: boolean;
     createdAt: Timestamp;
     updatedAt: Timestamp;
+    endDate?: Timestamp | null; // Data de término opcional para a escala
 }
 
 /**

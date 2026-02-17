@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { DEFAULT_SHIFT_TYPES } from '../types';
 import type { ShiftScale, ScalePatternType, ScaleCategory } from '../types';
 import { Timestamp } from 'firebase/firestore';
+import { addYears } from 'date-fns';
 
 interface ScaleFormProps {
     initialData?: Partial<ShiftScale>;
@@ -37,23 +38,36 @@ export const ScaleForm: React.FC<ScaleFormProps> = ({ initialData, onSubmit, onC
 
         // Determine cycle length based on pattern
         let cycleLength = 2;
-        if (patternType === '12x36') cycleLength = 2;
-        if (patternType === '24x72') cycleLength = 4;
-        if (patternType === '6x18') cycleLength = 1;
-        if (patternType === '24x96') cycleLength = 5;
-        // TODO: Custom pattern logic
+        let finalPatternType = patternType;
+
+        // Fix: If isOneOff is true, force single occurrence pattern
+        if (isOneOff) {
+            cycleLength = 1;
+            finalPatternType = 'custom'; // Use 'custom' to indicate one-off
+        } else {
+            // Regular recurring pattern
+            if (patternType === '12x36') cycleLength = 2;
+            if (patternType === '24x72') cycleLength = 4;
+            if (patternType === '6x18') cycleLength = 1;
+            if (patternType === '24x96') cycleLength = 5;
+            // TODO: Custom pattern logic
+        }
 
         // Fix: Parse YYYY-MM-DD manually to ensure Local Midnight (avoiding UTC timezone shift)
         const [y, m, d] = startDate.split('-').map(Number);
         const localStartDate = new Date(y, m - 1, d);
+
+        // Automatic 1-year expiration for all scales
+        const autoEndDate = addYears(localStartDate, 1);
 
         onSubmit({
             userId,
             name,
             category,
             isOneOff,
-            patternType,
+            patternType: finalPatternType,
             startDate: Timestamp.fromDate(localStartDate),
+            endDate: Timestamp.fromDate(autoEndDate), // Auto-expire after 1 year
             cycleLength,
             defaultShiftTypeId,
             customStartTime: (category === 'AC-4' && useCustomTime) ? customStartTime : null,

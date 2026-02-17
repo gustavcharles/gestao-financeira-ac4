@@ -10,7 +10,7 @@ import type { ShiftScale, ShiftEvent } from '../types';
 
 export const ScalesPage: React.FC = () => {
     const { currentUser: user } = useAuth();
-    const { scales, shifts, loading, refreshScales, setViewDate } = useScales(user?.uid);
+    const { scales, shifts, loading, refreshScales, refreshShifts, setViewDate } = useScales(user?.uid);
     const [isEditing, setIsEditing] = useState(false);
     const [selectedShift, setSelectedShift] = useState<ShiftEvent | null>(null);
 
@@ -71,36 +71,49 @@ export const ScalesPage: React.FC = () => {
         }
     };
 
-    const handleShiftAction = async (shiftId: string) => {
-        // Logic to remove/cancel shift
+    const handleShiftAction = async (shiftId: string, mode: 'single' | 'following' | 'all' = 'single') => {
         try {
             const shiftToDelete = shifts.find(s => s.id === shiftId);
             if (!shiftToDelete || !user) return;
 
-            // If it's a generated shift (not manual override), we "cancel" it instead of deleting
-            // Actually ScaleService.saveShiftEvent with status 'canceled' is the way, 
-            // OR if we want to remove it from view completely, we might need a 'canceled' status filter.
-            // For now, let's assume removing means creating an override that says "no shift today" or simpler:
+            if (mode === 'all') {
+                if (shiftToDelete.scaleId) {
+                    await ScaleService.deleteScale(shiftToDelete.scaleId);
+                    showToast("Escala excluída com sucesso.", 'success');
+                }
+            } else if (mode === 'following') {
+                if (shiftToDelete.scaleId) {
+                    // Ends the scale the day BEFORE this shift
+                    // So if I click Feb 10, end date should be Feb 9 (or Feb 10 start of day so it doesn't run?)
+                    // terminateScale sets endDate. Generator uses exclude if AFTER endDate.
+                    // If endDate is Feb 9, Feb 10 is after, so it works.
+                    // We need to set endDate to the day BEFORE the selected shift date.
 
-            // We need a way to mark "No Shift" for conflicts. 
-            // BUT for simple "Remove", if it is manual, deleteDoc. 
-            // If it is generated, we create a "CanceledShift" override? 
-            // Let's implement a simple Soft Delete for now: Override with isManualOverride=true and empty/canceled properties?
-            // A better approach for MVP: Just delete manual ones, and for generated ones, maybe alert user "Cant delete generated yet"?
-            // No, user needs to delete generated shifts (e.g. sick leave).
+                    // Actually, let's verify generator logic again.
+                    // if (!isAfter(currentIterDate, effectiveEndRange)) -> Include.
+                    // So effectiveEndRange must be the day BEFORE current shift for current shift to be EXCLUDED.
+                    const shiftDate = new Date(shiftToDelete.date + 'T12:00:00'); // Avoid timezone issues
+                    const endDate = new Date(shiftDate);
+                    endDate.setDate(endDate.getDate() - 1); // Day before
 
-            // Let's create a "Canceled" status override.
-            const override: ShiftEvent = {
-                ...shiftToDelete,
-                isManualOverride: true,
-                status: 'canceled' as any // We need to ensure 'canceled' is a valid status or add it
-            };
+                    await ScaleService.terminateScale(shiftToDelete.scaleId, endDate);
+                    showToast("Recorrência encerrada com sucesso.", 'success');
+                }
+            } else {
+                // Single event deletion
 
-            // Wait, if we set status 'canceled', it will still appear in shifts array... 
-            // we need to filter it out in CalendarView or style it as "Canceled".
-            // Let's check types.ts for valid statuses.
+                // If it's a generated shift (not manual override), we "cancel" it instead of deleting
+                // We create a "Canceled" status override.
+                const override: ShiftEvent = {
+                    ...shiftToDelete,
+                    isManualOverride: true,
+                    status: 'canceled' as any
+                };
 
-            await ScaleService.saveShiftEvent(override);
+                await ScaleService.saveShiftEvent(override);
+                showToast("Plantão removido com sucesso.", 'success');
+            }
+
             await refreshScales(); // Trigger fetchShifts
             setSelectedShift(null);
         } catch (error) {
@@ -110,13 +123,22 @@ export const ScalesPage: React.FC = () => {
     };
 
     const handleDuplicateScale = async (scaleId: string, newStartDate: Date) => {
+        console.log('🚀 [handleDuplicateScale] Starting...', { scaleId, newStartDate });
         try {
             await ScaleService.duplicateScale(scaleId, newStartDate);
+            console.log('📊 [handleDuplicateScale] Refreshing scales...');
             await refreshScales();
+
+            // Wait for React to process the scales state update
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            console.log('🔄 [handleDuplicateScale] Refreshing shifts...');
+            refreshShifts(); // Force calendar reload to show new shifts
+            console.log('✅ [handleDuplicateScale] All refreshes complete!');
             showToast("Escala duplicada com sucesso!", 'success');
             setSelectedShift(null); // Close modal
         } catch (error) {
-            console.error("Error duplicating scale:", error);
+            console.error("❌ [handleDuplicateScale] Error duplicating scale:", error);
             showToast("Erro ao duplicar escala.", 'error');
         }
     };
@@ -206,7 +228,20 @@ export const ScalesPage: React.FC = () => {
                         <ShiftDetailsModal
                             shift={selectedShift}
                             scaleName={scales.find(s => s.id === selectedShift.scaleId)?.name}
-                            onClose={() => setSelectedShift(null)}
+                            isRecurrent={(() => {
+                                const scale = scales.find(s => s.id === selectedShift.scaleId);
+                                console.log('Checking recurrence:', {
+                                    shiftId: selectedShift.id,
+                                    shiftScaleId: selectedShift.scaleId,
+                                    foundScale: scale,
+                                    isOneOff: scale?.isOneOff
+                                });
+                                return scale ? !scale.isOneOff : false;
+                            })()}
+                            onClose={() => {
+                                setSelectedShift(null);
+                                refreshShifts(); // Refresh calendar after closing modal
+                            }}
                             onDelete={handleShiftAction}
                             onEditScale={(scaleId) => {
                                 setEditingScaleId(scaleId);

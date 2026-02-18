@@ -195,7 +195,7 @@ export const Layout = () => {
                             <span>Sair</span>
                         </button>
                         <div className="mt-4 px-4 text-xs text-slate-400 text-center">
-                            v1.0.5 (PWA Fix)
+                            v1.1.0 (Calendar Export)
                         </div>
                     </div>
                 </div>

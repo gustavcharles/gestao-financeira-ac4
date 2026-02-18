@@ -22,24 +22,15 @@ export const useScales = (userId: string | undefined) => {
     }, [userId]);
 
     const fetchShifts = useCallback(async (start: Date, end: Date) => {
-        console.log('🔍 [fetchShifts] Called with range:', { start, end });
-        if (!userId) {
-            console.warn('⚠️ [fetchShifts] No userId, skipping...');
-            return;
-        }
+        if (!userId) return;
+
+        setLoading(true);
+
         try {
-            setLoading(true);
-            console.log('📡 [fetchShifts] Calling ScaleService.getShiftsForPeriod...');
             const data = await ScaleService.getShiftsForPeriod(userId, start, end);
-            console.log(`✅ [fetchShifts] Received ${data.length} shifts from service`);
-
-            if (data.length > 0) {
-                console.log('📋 [fetchShifts] First 3 shifts:', data.slice(0, 3));
-            }
-
             setShifts(data);
-        } catch (error) {
-            console.error("❌ [fetchShifts] Error:", error);
+        } catch (err) {
+            console.error('Error fetching shifts:', err);
         } finally {
             setLoading(false);
         }

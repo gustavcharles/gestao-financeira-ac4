@@ -25,5 +25,21 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "include": [
+    "web-app/src/**/*",
+    "web-app/scripts/**/*",
+    "*.ts",
+    "*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "web-app/node_modules",
+    "web-app/dist",
+    "web-app/.firebase",
+    ".venv",
+    ".temp_ag_kit",
+    "web-app/testsprite_tests",
+    "**/*.log"
+  ]
 }

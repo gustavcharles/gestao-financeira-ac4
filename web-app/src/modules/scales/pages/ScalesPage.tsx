@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useScales } from '../hooks/useScales';
 import { ScaleForm } from '../components/ScaleForm';
 import { CalendarView } from '../components/CalendarView';
+
 import { useAuth } from '../../../contexts/AuthContext';
 import { ScaleService } from '../services/scaleService';
 import { ShiftDetailsModal } from '../components/ShiftDetailsModal';
@@ -123,23 +124,15 @@ export const ScalesPage: React.FC = () => {
     };
 
     const handleDuplicateScale = async (scaleId: string, newStartDate: Date) => {
-        console.log('🚀 [handleDuplicateScale] Starting...', { scaleId, newStartDate });
         try {
             await ScaleService.duplicateScale(scaleId, newStartDate);
-            console.log('📊 [handleDuplicateScale] Refreshing scales...');
             await refreshScales();
-
-            // Wait for React to process the scales state update
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            console.log('🔄 [handleDuplicateScale] Refreshing shifts...');
             refreshShifts(); // Force calendar reload to show new shifts
-            console.log('✅ [handleDuplicateScale] All refreshes complete!');
-            showToast("Escala duplicada com sucesso!", 'success');
+            showToast('Escala duplicada com sucesso!', 'success');
             setSelectedShift(null); // Close modal
         } catch (error) {
-            console.error("❌ [handleDuplicateScale] Error duplicating scale:", error);
-            showToast("Erro ao duplicar escala.", 'error');
+            console.error('Error duplicating scale:', error);
+            showToast('Erro ao duplicar escala', 'error');
         }
     };
 
@@ -194,12 +187,14 @@ export const ScalesPage: React.FC = () => {
                             Gerencie suas escalas regulares e plantões extras
                         </p>
                     </div>
-                    <button
-                        onClick={() => { setEditingScaleId(null); setIsEditing(true); }}
-                        className="w-full md:w-auto px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-                    >
-                        + Nova Escala / Plantão
-                    </button>
+                    <div className="flex gap-2 w-full md:w-auto">
+                        <button
+                            onClick={() => { setEditingScaleId(null); setIsEditing(true); }}
+                            className="flex-1 md:flex-initial px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                        >
+                            + Nova Escala / Plantão
+                        </button>
+                    </div>
                 </div>
 
                 {/* Calendar - Appears FIRST on mobile, SECOND on desktop */}
@@ -213,7 +208,6 @@ export const ScalesPage: React.FC = () => {
                         shifts={shifts}
                         scales={scales}
                         onDateClick={(date) => {
-                            console.log("Clicked date:", date);
                             setInitialFormDate(date);
                             setIsEditing(true);
                             setEditingScaleId(null);
@@ -230,12 +224,6 @@ export const ScalesPage: React.FC = () => {
                             scaleName={scales.find(s => s.id === selectedShift.scaleId)?.name}
                             isRecurrent={(() => {
                                 const scale = scales.find(s => s.id === selectedShift.scaleId);
-                                console.log('Checking recurrence:', {
-                                    shiftId: selectedShift.id,
-                                    shiftScaleId: selectedShift.scaleId,
-                                    foundScale: scale,
-                                    isOneOff: scale?.isOneOff
-                                });
                                 return scale ? !scale.isOneOff : false;
                             })()}
                             onClose={() => {
@@ -261,6 +249,8 @@ export const ScalesPage: React.FC = () => {
                 isVisible={toast.isVisible}
                 onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
             />
+
+
         </div>
     );
 };

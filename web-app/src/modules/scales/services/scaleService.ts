@@ -63,42 +63,36 @@ export const ScaleService = {
      * Duplica uma escala existente para uma nova data de início
      */
     async duplicateScale(originalScaleId: string, newStartDate: Date): Promise<string> {
-        console.log('🔄 [duplicateScale] Starting duplication...', { originalScaleId, newStartDate });
+        const scaleRef = doc(db, 'scales', originalScaleId);
+        const scaleDoc = await getDoc(scaleRef);
 
-        const originalRef = doc(db, SCALES_COLLECTION, originalScaleId);
-        const originalSnap = await getDoc(originalRef);
-
-        if (!originalSnap.exists()) {
-            console.error('❌ [duplicateScale] Original scale not found!');
-            throw new Error("Escala original não encontrada");
+        if (!scaleDoc.exists()) {
+            throw new Error('Scale not found');
         }
 
-        const data = originalSnap.data() as ShiftScale;
-        console.log('📋 [duplicateScale] Original scale data:', data);
+        const data = scaleDoc.data() as ShiftScale;
 
-        // Calculate new endDate based on new startDate (1 year expiration)
-        const newEndDate = new Date(newStartDate);
-        newEndDate.setFullYear(newEndDate.getFullYear() + 1);
-        console.log('📅 [duplicateScale] Calculated dates:', { newStartDate, newEndDate });
+        // Calculate date difference and new end date
+        const originalStart = data.startDate.toDate();
+        const newStart = new Date(newStartDate);
 
-        // Destructure to exclude the id field instead of deleting it
-        const { id, ...scaleWithoutId } = data;
+        // New end date = nStart + (endDate - startDate)
+        let newEndDate: Timestamp | null = null;
+        if (data.endDate) {
+            const originalEnd = data.endDate.toDate();
+            const diffMs = originalEnd.getTime() - originalStart.getTime();
+            const calculatedEndDate = new Date(newStart.getTime() + diffMs);
+            newEndDate = Timestamp.fromDate(calculatedEndDate);
+        }
 
-        // Create copy
+        // Create new scale with updated dates
         const newScale: Omit<ShiftScale, 'id'> = {
-            ...scaleWithoutId,
-            name: `${data.name} (Cópia)`,
-            startDate: Timestamp.fromDate(newStartDate),
-            endDate: Timestamp.fromDate(newEndDate), // Recalculate based on new startDate
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now(),
-            isActive: true
+            ...data,
+            startDate: Timestamp.fromDate(newStart),
+            endDate: newEndDate,
         };
 
-        console.log('📝 [duplicateScale] New scale to create:', newScale);
-
-        const newScaleId = await this.createScale(newScale);
-        console.log('✅ [duplicateScale] Scale created successfully!', { newScaleId });
+        const newScaleId = await ScaleService.createScale(newScale);
 
         return newScaleId;
     },
@@ -181,24 +175,12 @@ export const ScaleService = {
         end: Date
     ): Promise<ShiftEvent[]> {
         // 1. Buscar escalas ativas do usuário
-        console.log('🔎 [getShiftsForPeriod] Called:', { userId, start, end });
         const scales = await this.getUserScales(userId);
-        console.log(`📊 [getShiftsForPeriod] Found ${scales.length} scales for user`);
-        if (scales.length > 0) {
-            console.log('📋 [getShiftsForPeriod] Scales:', scales.map(s => ({ name: s.name, id: s.id, isActive: s.isActive })));
-        }
 
-        // 2. Gerar plantões teóricos para cada escala
-        let allShifts: ShiftEvent[] = [];
-        scales.forEach(scale => {
-            console.log(`🔄 [getShiftsForPeriod] Generating shifts for scale: "${scale.name}" (${scale.id})...`);
+        const allShifts: ShiftEvent[] = [];
+        for (const scale of scales) {
             const generated = generateShifts(scale, start, end);
-            console.log(`  ✅ Generated ${generated.length} shifts`);
-            allShifts = [...allShifts, ...generated];
-        });
-        console.log(`📦 [getShiftsForPeriod] Total generated shifts: ${allShifts.length}`);
-        if (allShifts.length > 0) {
-            console.log('📋 [getShiftsForPeriod] Sample shifts:', allShifts.slice(0, 2));
+            allShifts.push(...generated);
         }
 
         // 3. Buscar overrides/exceções salvas no Firestore para este período

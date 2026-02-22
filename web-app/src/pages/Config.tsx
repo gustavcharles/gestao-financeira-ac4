@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSettings } from '../hooks/useSettings';
-import { Trash2, Plus, GripVertical, CheckCircle2, X } from 'lucide-react';
+import { usePushNotifications } from '../hooks/usePushNotifications';
+import { Trash2, Plus, GripVertical, CheckCircle2, X, Bell, BellOff, BellRing, Loader2 } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { ReportGenerator } from '../components/reports/ReportGenerator';
 import { CategoryIconPicker } from '../components/ui/CategoryIconPicker';
@@ -327,6 +328,9 @@ export const Config = () => {
                 </div>
             </div>
 
+            {/* Push Notifications Section */}
+            <NotificationsCard />
+
             {/* Reports Section */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-slate-100 dark:border-slate-700">
@@ -350,3 +354,114 @@ export const Config = () => {
         </div>
     );
 };
+
+function NotificationsCard() {
+    const { isActive, isLoading, error, permission, enableNotifications, disableNotifications } = usePushNotifications();
+    const [success, setSuccess] = useState(false);
+
+    const handleEnable = async () => {
+        setSuccess(false);
+        const ok = await enableNotifications();
+        if (ok) setSuccess(true);
+    };
+
+    const handleDisable = async () => {
+        setSuccess(false);
+        await disableNotifications();
+    };
+
+    const isDenied = permission === 'denied';
+    const isUnsupported = permission === 'unsupported';
+    const isInit = permission === 'loading';
+
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+                <h3 className="font-bold text-lg text-slate-800 dark:text-white mb-1">Notificações Push</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm">Receba lembretes dos seus próximos plantões</p>
+            </div>
+            <div className="p-6 space-y-4">
+                {/* Status row */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/30 rounded-xl border border-slate-100 dark:border-slate-700">
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${isActive ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' :
+                            isDenied ? 'bg-red-100 dark:bg-red-900/30 text-red-500' :
+                                isUnsupported ? 'bg-slate-100 dark:bg-slate-700 text-slate-400' :
+                                    'bg-amber-100 dark:bg-amber-900/30 text-amber-500'
+                            }`}>
+                            {isActive ? <BellRing size={20} /> : isDenied || isUnsupported ? <BellOff size={20} /> : <Bell size={20} />}
+                        </div>
+                        <div>
+                            <div className="font-medium text-slate-800 dark:text-slate-200 text-sm">
+                                {isInit ? 'Verificando...' :
+                                    isActive ? 'Notificações ativadas' :
+                                        isDenied ? 'Permissão bloqueada' :
+                                            isUnsupported ? 'Não suportado neste dispositivo' :
+                                                'Notificações desativadas'}
+                            </div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                {isActive ? 'Você receberá lembretes 24h antes dos plantões' :
+                                    isDenied ? 'Habilite nas configurações do navegador/sistema' :
+                                        isUnsupported ? 'Instale o app para receber notificações' :
+                                            isInit ? '' :
+                                                'Clique para ativar lembretes de plantões'}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Botão ativar / desativar */}
+                    {!isUnsupported && !isDenied && !isInit && (
+                        isActive ? (
+                            <button
+                                onClick={handleDisable}
+                                disabled={isLoading}
+                                className="text-sm text-slate-500 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 font-medium flex items-center gap-1.5"
+                            >
+                                {isLoading ? <Loader2 size={16} className="animate-spin" /> : 'Desativar'}
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleEnable}
+                                disabled={isLoading}
+                                className="bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-60"
+                            >
+                                {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Bell size={16} />}
+                                Ativar
+                            </button>
+                        )
+                    )}
+                    {isDenied && (
+                        <span className="text-xs text-slate-400 dark:text-slate-500 text-right max-w-[120px]">
+                            Habilite no navegador e recarregue
+                        </span>
+                    )}
+                </div>
+
+                {/* Erro */}
+                {error && (
+                    <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
+                        <X size={16} />
+                        {error}
+                    </div>
+                )}
+
+                {/* Sucesso */}
+                {success && isActive && (
+                    <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-lg">
+                        <CheckCircle2 size={16} />
+                        Notificações ativadas! Você receberá um lembrete 24h antes de cada plantão.
+                    </div>
+                )}
+
+                {/* Info */}
+                <div className="text-xs text-slate-500 dark:text-slate-400 flex items-start gap-2">
+                    <Bell size={12} className="mt-0.5 shrink-0" />
+                    <span>As notificações funcionam mesmo com o app fechado, desde que instalado na tela inicial (Android) ou no Chrome Desktop.</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+

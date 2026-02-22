@@ -48,7 +48,7 @@ export const Login = () => {
                 // Create User Profile in Firestore
                 const isAdmin = email === 'gustav.charles@gmail.com';
                 const now = new Date();
-                const trialEnds = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // +30 dias
+                const trialEnds = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000); // +15 dias
 
                 // Force status to 'trial' for new users (except specific admin email)
                 const userStatus = isAdmin ? 'active' : 'trial';

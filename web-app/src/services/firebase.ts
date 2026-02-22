@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getAnalytics, logEvent, isSupported } from "firebase/analytics";
+import { getMessaging, isSupported as isMessagingSupported } from "firebase/messaging";
 
 // TODO: Replace with your actual Firebase project configuration
 // You can find this in the Firebase Console -> Project Settings -> General
@@ -18,6 +19,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Messaging — only available in browser contexts that support it
+export let messaging: ReturnType<typeof getMessaging> | null = null;
+isMessagingSupported().then((supported) => {
+    if (supported) {
+        messaging = getMessaging(app);
+    }
+});
 
 let analytics: any = null;
 

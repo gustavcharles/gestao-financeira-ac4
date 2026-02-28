@@ -27,6 +27,14 @@ export function useExpirationCheck() {
                 let needsUpdate = false;
                 const updates: any = {};
 
+                // Ativar trial no primeiro acesso (trialEndsAt é null)
+                if (userProfile.status === 'trial' && !userProfile.trialEndsAt) {
+                    const trialEnds = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+                    updates.trialEndsAt = trialEnds;
+                    needsUpdate = true;
+                    console.log('✅ Trial ativado para:', userProfile.email, '- expira em:', trialEnds.toISOString());
+                }
+
                 // Verificar trial expirado
                 if (userProfile.status === 'trial' && userProfile.trialEndsAt) {
                     const trialEnd = userProfile.trialEndsAt.toDate ?
@@ -59,9 +67,13 @@ export function useExpirationCheck() {
                 // Atualizar se necessário
                 if (needsUpdate) {
                     await updateDoc(doc(db, 'users', currentUser.uid), updates);
-                    console.log('Status atualizado para expired. Recarregando página...');
-                    // Forçar reload para atualizar o contexto de autenticação
-                    window.location.reload();
+                    // Só recarregar se status mudou para expired
+                    if (updates.status === 'expired') {
+                        console.log('Status atualizado para expired. Recarregando página...');
+                        window.location.reload();
+                    } else {
+                        console.log('[ExpirationCheck] Perfil atualizado:', updates);
+                    }
                 }
 
             } catch (error) {

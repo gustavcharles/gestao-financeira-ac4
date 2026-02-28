@@ -45,15 +45,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (user) {
                 logUserEvent('login', { method: 'email' });
                 // Subscribe to profile changes (real-time approval update)
-                const unsubProfile = onSnapshot(doc(db, 'users', user.uid), (doc) => {
-                    if (doc.exists()) {
-                        setUserProfile(doc.data() as UserProfile);
-                    } else {
-                        // Fallback if no profile exists yet (should exist from Login)
+                const unsubProfile = onSnapshot(
+                    doc(db, 'users', user.uid),
+                    (doc) => {
+                        if (doc.exists()) {
+                            setUserProfile(doc.data() as UserProfile);
+                        } else {
+                            // Fallback if no profile exists yet (should exist from Login)
+                            setUserProfile(null);
+                        }
+                        setLoading(false);
+                    },
+                    (error) => {
+                        console.error('[AuthContext] Firestore snapshot error:', error);
                         setUserProfile(null);
+                        setLoading(false);
                     }
-                    setLoading(false);
-                });
+                );
                 return () => unsubProfile();
             } else {
                 setUserProfile(null);

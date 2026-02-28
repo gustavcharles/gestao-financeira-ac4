@@ -6,7 +6,7 @@ import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { getApps } from 'firebase/app';
 
-const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+const VAPID_KEY = 'BHzxqJn_UJAQeEyZXNGQUWjeTMJ_bTmYqKbPuKRNhoEApEn9Ouw_SjoOhZ3vMMeaj9Ny6SrzviElfbpmGplZVkE';
 
 export type NotificationPermissionStatus = 'default' | 'granted' | 'denied' | 'unsupported' | 'loading';
 

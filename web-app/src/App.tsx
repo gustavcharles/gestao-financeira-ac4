@@ -11,6 +11,7 @@ import { Pending } from './pages/Pending';
 import { Expired } from './pages/Expired';
 import { ScalesPage } from './modules/scales/pages/ScalesPage';
 import { ReloadPrompt } from './components/ui/ReloadPrompt';
+import { InstallPrompt } from './components/ui/InstallPrompt';
 import { useExpirationCheck } from './hooks/useExpirationCheck';
 
 // Componente interno que usa o hook dentro do AuthProvider
@@ -21,6 +22,7 @@ function AppContent() {
   return (
     <BrowserRouter>
       <ReloadPrompt />
+      <InstallPrompt />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/pending" element={<Pending />} />

@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection: each user can read/write their own document
+    // Admin can read all users
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+      // Subcollections under user (e.g., private/calendar)
+      match /{subcollection=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Login: allow querying users by email (for registration anti-abuse check)
+    match /users/{userId} {
+      allow list: if request.auth == null
+                  && request.query.limit <= 1;
+    }
+
+    // Transactions (transacoes): users can only access their own
+    match /transacoes/{docId} {
+      allow read, write: if request.auth != null && resource == null || resource.data.user_id == request.auth.uid;
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+    }
+
+    // User settings: each user manages their own
+    match /user_settings/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Scales: users can only access their own
+    match /scales/{docId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // Shifts: users can only access their own
+    match /shifts/{docId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+  }
+}

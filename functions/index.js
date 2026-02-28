@@ -29,7 +29,7 @@ exports.sendShiftReminders = onSchedule(
 
         // Buscar todos os ShiftEvents na janela de 24-48h
         const shiftsSnap = await db
-            .collection("shiftEvents")
+            .collection("shifts")
             .where("startTime", ">=", admin.firestore.Timestamp.fromDate(windowStart))
             .where("startTime", "<=", admin.firestore.Timestamp.fromDate(windowEnd))
             .where("status", "in", ["scheduled", "confirmed"])
@@ -180,6 +180,102 @@ exports.testNotification = onRequest(
                 success: true,
                 successCount: response.successCount,
                 failureCount: response.failureCount,
+            });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    }
+);
+
+/**
+ * ONE-TIME HTTP trigger para migrar usuários "active" para trial de 15 dias.
+ * Acesse: GET /migrateToTrial?adminKey=ac4migrate2026
+ * REMOVER APÓS USO!
+ */
+exports.migrateToTrial = onRequest(
+    { region: "us-central1" },
+    async (req, res) => {
+        // Proteção simples
+        if (req.query.adminKey !== "ac4migrate2026") {
+            res.status(403).json({ error: "Acesso negado" });
+            return;
+        }
+
+        // Modo diagnóstico: listar todos os usuários
+        if (req.query.action === "check") {
+            const allUsers = await db.collection("users").get();
+            const users = allUsers.docs.map((d) => ({
+                email: d.data().email,
+                status: d.data().status,
+                role: d.data().role,
+                plan: d.data().plan || null,
+                trialEndsAt: d.data().trialEndsAt ? d.data().trialEndsAt.toDate().toISOString() : null,
+            }));
+            res.json({ total: users.length, users });
+            return;
+        }
+
+        // Limpar trialEndsAt para que trial comece no próximo login
+        if (req.query.action === "resetTrial") {
+            const snapshot = await db
+                .collection("users")
+                .where("status", "==", "trial")
+                .where("role", "==", "user")
+                .get();
+
+            const batch = db.batch();
+            const reset = [];
+
+            for (const docSnap of snapshot.docs) {
+                const data = docSnap.data();
+                if (data.email === "gustav.charles@gmail.com") continue;
+                batch.update(docSnap.ref, { trialEndsAt: null });
+                reset.push(data.email);
+            }
+
+            await batch.commit();
+            res.json({ success: true, count: reset.length, users: reset });
+            return;
+        }
+
+        const now = new Date();
+        const trialEnds = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+
+        try {
+            const snapshot = await db
+                .collection("users")
+                .where("status", "==", "active")
+                .where("role", "==", "user")
+                .get();
+
+            if (snapshot.empty) {
+                res.json({ message: "Nenhum usuário encontrado", count: 0 });
+                return;
+            }
+
+            const batch = db.batch();
+            const migrated = [];
+
+            for (const docSnap of snapshot.docs) {
+                const data = docSnap.data();
+                if (data.email === "gustav.charles@gmail.com") continue;
+
+                batch.update(docSnap.ref, {
+                    status: "trial",
+                    plan: "trial",
+                    trialEndsAt: trialEnds,
+                    subscriptionEndsAt: null,
+                    paymentId: null,
+                });
+                migrated.push(data.email);
+            }
+
+            await batch.commit();
+            res.json({
+                success: true,
+                count: migrated.length,
+                trialEndsAt: trialEnds.toISOString(),
+                users: migrated,
             });
         } catch (err) {
             res.status(500).json({ error: err.message });

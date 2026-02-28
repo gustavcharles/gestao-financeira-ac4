@@ -4,16 +4,13 @@ import { getFirestore } from "firebase/firestore";
 import { getAnalytics, logEvent, isSupported } from "firebase/analytics";
 import { getMessaging, isSupported as isMessagingSupported } from "firebase/messaging";
 
-// TODO: Replace with your actual Firebase project configuration
-// You can find this in the Firebase Console -> Project Settings -> General
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    measurementId: "G-XXXXXXXXXX" // Optional: Add your measurement ID if available
+    apiKey: "AIzaSyCxUSEG5Z2qPkhLsjbcVcVDqRwM4vV-uso",
+    authDomain: "controle-contas-ac4.firebaseapp.com",
+    projectId: "controle-contas-ac4",
+    storageBucket: "controle-contas-ac4.firebasestorage.app",
+    messagingSenderId: "75975533820",
+    appId: "1:75975533820:web:85873e32ff94fa622f2379",
 };
 
 const app = initializeApp(firebaseConfig);

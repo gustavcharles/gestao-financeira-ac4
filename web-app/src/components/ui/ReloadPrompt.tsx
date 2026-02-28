@@ -52,8 +52,11 @@ export const ReloadPrompt = () => {
 
                 {needRefresh && (
                     <button
-                        onClick={() => updateServiceWorker(true)}
-                        className="w-full bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                        onClick={() => {
+                            console.log('[PWA] Updating service worker...');
+                            updateServiceWorker(true);
+                        }}
+                        className="w-full bg-primary-600 hover:bg-primary-700 active:scale-[0.98] text-white text-sm font-medium py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg"
                     >
                         <RefreshCw size={16} />
                         Atualizar agora

@@ -3,6 +3,7 @@ const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const { format, addHours } = require("date-fns");
 const { toZonedTime } = require("date-fns-tz");
+const cors = require("cors")({ origin: true });
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -123,7 +124,14 @@ exports.sendShiftReminders = onSchedule(
                         });
                     }
                 } catch (err) {
-                    console.error(`[sendShiftReminders] Erro ao enviar para userId=${userId}:`, err);
+                    console.error(`[sendShiftReminders] Erro ao FCM para userId=${userId}:`, err);
+                }
+
+                // --- NOVIDADE: Envio via WhatsApp ---
+                const phone = userDoc.data()?.phone;
+                if (phone) {
+                    const waMessage = `*Lembrete de Plantão* 🔔\n\nOlá! Você tem um ${shiftName}${category ? ` (${category})` : ""} amanhã às ${timeStr}.\n\nPara mais detalhes, confira as escalas no seu app Gestão AC-4 Pro.`;
+                    await sendWhatsAppMessage(phone, waMessage);
                 }
             }
         });
@@ -280,5 +288,340 @@ exports.migrateToTrial = onRequest(
         } catch (err) {
             res.status(500).json({ error: err.message });
         }
+    }
+);
+
+// --- WHATSAPP / EVOLUTION API INTEGRATION ---
+
+/**
+ * Helper: Busca configurações do WhatsApp no Firestore
+ */
+async function getWhatsAppConfig() {
+    const docSnap = await db.collection("app_config").doc("whatsapp").get();
+    if (!docSnap.exists) return null;
+    return docSnap.data();
+}
+
+/**
+ * Helper: Normaliza número de telefone para o padrão do WhatsApp (55 + DDD + Numero)
+ */
+function formatWhatsAppNumber(phone) {
+    if (!phone) return null;
+    // Remove tudo que não for número
+    let cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 10 || cleaned.length === 11) {
+        cleaned = '55' + cleaned;
+    }
+    return cleaned;
+}
+
+/**
+ * Helper: Envia mensagem via Evolution API
+ */
+async function sendWhatsAppMessage(phone, message) {
+    const config = await getWhatsAppConfig();
+    if (!config || !config.enabled || !config.baseUrl || !config.apiKey || !config.instanceName) {
+        console.log("[WhatsApp] Integração desabilitada ou incompleta.");
+        return { success: false, error: "Integração desabilitada ou incompleta." };
+    }
+
+    const formattedPhone = formatWhatsAppNumber(phone);
+    if (!formattedPhone) return { success: false, error: "Telefone inválido." };
+
+    let baseUrl = config.baseUrl.trim();
+    if (!baseUrl.includes('://')) {
+        baseUrl = 'https://' + baseUrl;
+    }
+
+    const url = `${baseUrl}/message/sendText/${encodeURIComponent(config.instanceName)}`;
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': config.apiKey
+            },
+            body: JSON.stringify({
+                number: formattedPhone,
+                options: {
+                    delay: 1200,
+                    presence: 'composing',
+                    linkPreview: false
+                },
+                text: message
+            })
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error(`[WhatsApp] Erro ao enviar para ${formattedPhone}: ${errText}`);
+            return { success: false, error: errText };
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error(`[WhatsApp] Falha na requisição para ${formattedPhone}:`, error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Cria instância na Evolution API
+ * POST /whatsappCreateInstance?adminKey=...
+ */
+exports.whatsappCreateInstance = onRequest(
+    { region: "us-central1" },
+    (req, res) => {
+        cors(req, res, async () => {
+            if (req.query.adminKey !== "ac4migrate2026") {
+                res.status(403).json({ error: "Acesso negado" });
+                return;
+            }
+
+            const config = await getWhatsAppConfig();
+            if (!config || !config.baseUrl || !config.apiKey || !config.instanceName) {
+                res.status(400).json({ error: "Configuração incompleta no Firestore" });
+                return;
+            }
+
+            let baseUrl = config.baseUrl.trim();
+            if (!baseUrl.includes('://')) {
+                baseUrl = 'https://' + baseUrl;
+            }
+
+            try {
+                const response = await fetch(`${baseUrl}/instance/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': config.apiKey
+                    },
+                    body: JSON.stringify({
+                        instanceName: config.instanceName,
+                        qrcode: true,
+                        integration: "WHATSAPP-BAILEYS"
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    // Instância pode já existir
+                    res.status(400).json({ error: data });
+                    return;
+                }
+
+                // Atualiza status localmente
+                await db.collection("app_config").doc("whatsapp").set({ status: 'created' }, { merge: true });
+
+                res.json({ success: true, data });
+            } catch (err) {
+                res.status(500).json({ error: err.message });
+            }
+        });
+    }
+);
+
+/**
+ * Deleta a instância na Evolution API e reseta o status no Firestore
+ * DELETE /whatsappDeleteInstance?adminKey=...
+ */
+exports.whatsappDeleteInstance = onRequest(
+    { region: "us-central1" },
+    (req, res) => {
+        cors(req, res, async () => {
+            if (req.query.adminKey !== "ac4migrate2026") {
+                res.status(403).json({ error: "Acesso negado" });
+                return;
+            }
+
+            const config = await getWhatsAppConfig();
+            if (!config || !config.baseUrl || !config.apiKey || !config.instanceName) {
+                res.status(400).json({ error: "Configuração incompleta no Firestore" });
+                return;
+            }
+
+            let baseUrl = config.baseUrl.trim();
+            if (!baseUrl.includes('://')) {
+                baseUrl = 'https://' + baseUrl;
+            }
+
+            try {
+                // Tenta logout e deletar na Evolution API
+                await fetch(`${baseUrl}/instance/logout/${encodeURIComponent(config.instanceName)}`, {
+                    method: 'DELETE',
+                    headers: { 'apikey': config.apiKey }
+                });
+
+                await fetch(`${baseUrl}/instance/delete/${encodeURIComponent(config.instanceName)}`, {
+                    method: 'DELETE',
+                    headers: { 'apikey': config.apiKey }
+                });
+
+                // Limpa o status localmente no Firestore
+                await db.collection("app_config").doc("whatsapp").set({ status: 'disconnected' }, { merge: true });
+
+                res.json({ success: true, message: "Instância deletada com sucesso" });
+            } catch (err) {
+                res.status(500).json({ error: err.message });
+            }
+        });
+    }
+);
+
+/**
+ * Retorna o QR Code em base64
+ * GET /whatsappGetQRCode?adminKey=...
+ */
+exports.whatsappGetQRCode = onRequest(
+    { region: "us-central1" },
+    (req, res) => {
+        cors(req, res, async () => {
+            if (req.query.adminKey !== "ac4migrate2026") {
+                res.status(403).json({ error: "Acesso negado" });
+                return;
+            }
+
+            const config = await getWhatsAppConfig();
+            if (!config || !config.baseUrl || !config.apiKey || !config.instanceName) {
+                res.status(400).json({ error: "Configuração incompleta" });
+                return;
+            }
+
+            let baseUrl = config.baseUrl.trim();
+            if (!baseUrl.includes('://')) {
+                baseUrl = 'https://' + baseUrl;
+            }
+
+            try {
+                const response = await fetch(`${baseUrl}/instance/connect/${encodeURIComponent(config.instanceName)}`, {
+                    method: 'GET',
+                    headers: { 'apikey': config.apiKey }
+                });
+
+                const data = await response.json();
+                res.json({ success: response.ok, data });
+            } catch (err) {
+                res.status(500).json({ error: err.message });
+            }
+        });
+    }
+);
+
+/**
+ * Retorna o status da conexão
+ * GET /whatsappGetStatus?adminKey=...
+ */
+exports.whatsappGetStatus = onRequest(
+    { region: "us-central1" },
+    (req, res) => {
+        cors(req, res, async () => {
+            if (req.query.adminKey !== "ac4migrate2026") {
+                res.status(403).json({ error: "Acesso negado" });
+                return;
+            }
+
+            const config = await getWhatsAppConfig();
+            if (!config || !config.baseUrl || !config.apiKey || !config.instanceName) {
+                res.status(400).json({ error: "Configuração incompleta" });
+                return;
+            }
+
+            let baseUrl = config.baseUrl.trim();
+            if (!baseUrl.includes('://')) {
+                baseUrl = 'https://' + baseUrl;
+            }
+
+            try {
+                const response = await fetch(`${baseUrl}/instance/connectionState/${encodeURIComponent(config.instanceName)}`, {
+                    method: 'GET',
+                    headers: { 'apikey': config.apiKey }
+                });
+
+                const data = await response.json();
+
+                if (data && data.instance && data.instance.state) {
+                    await db.collection("app_config").doc("whatsapp").update({ status: data.instance.state });
+                }
+
+                res.json({ success: response.ok, data });
+            } catch (err) {
+                res.status(500).json({ error: err.message });
+            }
+        });
+    }
+);
+
+/**
+ * Envia mensagem de teste
+ * POST /whatsappSendTest?adminKey=...
+ */
+exports.whatsappSendTest = onRequest(
+    { region: "us-central1" },
+    (req, res) => {
+        cors(req, res, async () => {
+            if (req.query.adminKey !== "ac4migrate2026") {
+                res.status(403).json({ error: "Acesso negado" });
+                return;
+            }
+
+            const { phone, message } = req.body;
+            if (!phone || !message) {
+                res.status(400).json({ error: "Phone e message são obrigatórios" });
+                return;
+            }
+
+            const result = await sendWhatsAppMessage(phone, message);
+            if (!result.success) {
+                res.status(400).json({ success: false, error: result.error });
+                return;
+            }
+            res.json({ success: true });
+        });
+    }
+);
+
+/**
+ * Envia mensagem para todos os usuários com telefone (Broadcast)
+ * POST /whatsappBroadcast?adminKey=...
+ */
+exports.whatsappBroadcast = onRequest(
+    { region: "us-central1" },
+    (req, res) => {
+        cors(req, res, async () => {
+            if (req.query.adminKey !== "ac4migrate2026") {
+                res.status(403).json({ error: "Acesso negado" });
+                return;
+            }
+
+            const { message } = req.body;
+            if (!message) {
+                res.status(400).json({ error: "Message é obrigatória" });
+                return;
+            }
+
+            try {
+                const usersSnap = await db.collection("users").where("status", "in", ["active", "trial"]).get();
+                let count = 0;
+                let noPhoneCount = 0;
+
+                for (const doc of usersSnap.docs) {
+                    const user = doc.data();
+                    if (user.phone) {
+                        const result = await sendWhatsAppMessage(user.phone, message);
+                        if (result.success) {
+                            count++;
+                        }
+                    } else {
+                        noPhoneCount++;
+                    }
+                }
+
+                res.json({ success: true, sent: count, noPhone: noPhoneCount });
+            } catch (err) {
+                res.status(500).json({ error: err.message });
+            }
+        });
     }
 );

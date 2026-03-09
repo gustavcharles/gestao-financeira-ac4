@@ -15,6 +15,7 @@ export interface UserProfile {
     subscriptionEndsAt: any | null; // Timestamp
     paymentId: string | null; // ID do Asaas
     lastSyncAt: any | null; // Timestamp
+    phone?: string; // Número do WhatsApp
     notificationsSent?: {
         trial7d?: any; // Timestamp
         trial3d?: any; // Timestamp

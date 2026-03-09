@@ -12,7 +12,7 @@ export default defineConfig({
       workbox: {
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: true,
+        skipWaiting: false,
         // Cache assets Vite com hash (imutáveis) por 1 ano
         runtimeCaching: [
           {

@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { usePushNotifications } from '../hooks/usePushNotifications';
-import { Trash2, Plus, GripVertical, CheckCircle2, X, Bell, BellOff, BellRing, Loader2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
+import { Trash2, Plus, GripVertical, CheckCircle2, X, Bell, BellOff, BellRing, Loader2, MessageCircle, ExternalLink, Phone, Save } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { ReportGenerator } from '../components/reports/ReportGenerator';
 import { CategoryIconPicker } from '../components/ui/CategoryIconPicker';
@@ -108,6 +111,9 @@ export const Config = () => {
     return (
         <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 md:pb-0">
             <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Configurações</h2>
+
+            {/* Profile Section */}
+            <ProfileSection />
 
             {/* Categories Section */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
@@ -331,6 +337,38 @@ export const Config = () => {
             {/* Push Notifications Section */}
             <NotificationsCard />
 
+            {/* Support Section */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+                    <h3 className="font-bold text-lg text-slate-800 dark:text-white mb-1">Suporte ao Cliente</h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Precisa de ajuda? Fale conosco diretamente pelo WhatsApp.</p>
+                </div>
+                <div className="p-6">
+                    <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 shrink-0">
+                                <MessageCircle size={24} />
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-slate-800 dark:text-white">Suporte via WhatsApp</h4>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">Atendimento humanizado para tirar suas dúvidas.</p>
+                            </div>
+                        </div>
+
+                        <a
+                            href="https://wa.me/5562982755654"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-emerald-500/25 w-full md:w-auto justify-center"
+                        >
+                            <MessageCircle size={20} />
+                            Falar com Suporte
+                            <ExternalLink size={14} className="opacity-50" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+
             {/* Reports Section */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-slate-100 dark:border-slate-700">
@@ -457,6 +495,94 @@ function NotificationsCard() {
                 <div className="text-xs text-slate-500 dark:text-slate-400 flex items-start gap-2">
                     <Bell size={12} className="mt-0.5 shrink-0" />
                     <span>As notificações funcionam mesmo com o app fechado, desde que instalado na tela inicial (Android) ou no Chrome Desktop.</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ProfileSection() {
+    const { currentUser, userProfile } = useAuth();
+    const [phone, setPhone] = useState(userProfile?.phone || '');
+    const [isSaving, setIsSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    const handleSave = async () => {
+        if (!currentUser) return;
+        setIsSaving(true);
+        setSaved(false);
+        try {
+            await updateDoc(doc(db, 'users', currentUser.uid), {
+                phone: phone.replace(/\D/g, '') // Save only digits
+            });
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+        } catch (error) {
+            console.error('Error saving profile:', error);
+            alert('Erro ao salvar o perfil.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+                <h3 className="font-bold text-lg text-slate-800 dark:text-white mb-1">Meu Perfil</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm">Gerencie suas informações pessoais</p>
+            </div>
+
+            <div className="p-6 space-y-4">
+                <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">E-mail</label>
+                        <input
+                            type="email"
+                            value={currentUser?.email || ''}
+                            disabled
+                            className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                            WhatsApp (com DDD)
+                        </label>
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <Phone size={16} className="text-slate-400" />
+                            </div>
+                            <input
+                                type="tel"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                placeholder="Ex: 11999999999"
+                                className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                    <div className="text-sm">
+                        {userProfile?.phone ? (
+                            <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                                <CheckCircle2 size={16} /> WhatsApp configurado
+                            </span>
+                        ) : (
+                            <span className="text-amber-500 flex items-center gap-1 font-medium">
+                                <BellOff size={16} /> Insira seu número para receber avisos
+                            </span>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+                    >
+                        {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                        {saved ? 'Salvo!' : 'Salvar Perfil'}
+                    </button>
                 </div>
             </div>
         </div>

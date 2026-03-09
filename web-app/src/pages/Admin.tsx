@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs, updateDoc, doc, orderBy, query } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import type { UserProfile } from '../contexts/AuthContext';
-import { Check, X, Shield, User, Search, Loader2, RefreshCw, Clock, TrendingUp, AlertCircle, MessageSquare, QrCode, Send, Settings, Save, Smartphone } from 'lucide-react';
+import { Check, X, Shield, User, Search, Loader2, RefreshCw, Clock, TrendingUp, AlertCircle, MessageSquare, QrCode, Send, Settings, Save, Smartphone, Star } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { syncPaymentsFromSheets } from '../services/sheetsSync';
 import {
@@ -27,7 +27,7 @@ export const Admin = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [syncing, setSyncing] = useState(false);
-    const [activeTab, setActiveTab] = useState<'users' | 'whatsapp'>('users');
+    const [activeTab, setActiveTab] = useState<'users' | 'whatsapp' | 'feedback'>('users');
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -211,9 +211,21 @@ export const Admin = () => {
                         <MessageSquare size={18} /> WhatsApp (Evolution API)
                     </div>
                 </button>
+                <button
+                    onClick={() => setActiveTab('feedback')}
+                    className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'feedback'
+                        ? 'border-amber-500 text-amber-600 dark:text-amber-400'
+                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
+                        }`}
+                >
+                    <div className="flex items-center gap-2">
+                        <Star size={18} /> Feedback
+                    </div>
+                </button>
             </div>
 
             {activeTab === 'whatsapp' && <AdminWhatsApp users={users} />}
+            {activeTab === 'feedback' && <AdminFeedback />}
 
             {activeTab === 'users' && (
                 <>
@@ -617,20 +629,15 @@ function AdminWhatsApp({ users }: { users: UserData[] }) {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
                         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Base URL (Cloudfy)</label>
-                        <input type="text" value={formBaseUrl} onChange={e => setFormBaseUrl(e.target.value)} placeholder="https://..." className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl" />
+                        <input type="text" value={formBaseUrl} onChange={e => setFormBaseUrl(e.target.value)} placeholder="https://..." className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white" />
                     </div>
                     <div>
                         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Global API Key</label>
-                        <input type="password" value={formApiKey} onChange={e => setFormApiKey(e.target.value)} className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl" />
+                        <input type="password" value={formApiKey} onChange={e => setFormApiKey(e.target.value)} className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white" />
                     </div>
                     <div>
                         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nome da Instância</label>
-                        <input type="text" value={formInstanceName} onChange={e => setFormInstanceName(e.target.value)} className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl" />
-                        {config?.status && config.status !== 'disconnected' && (
-                            <button onClick={handleRestartInstance} disabled={isRestarting} className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 mt-2 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors dark:bg-red-900/30 dark:text-red-400 disabled:opacity-50 w-full md:w-auto">
-                                {isRestarting ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />} Apagar Instância
-                            </button>
-                        )}
+                        <input type="text" value={formInstanceName} onChange={e => setFormInstanceName(e.target.value)} className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white" />
                     </div>
                 </div>
 
@@ -649,6 +656,12 @@ function AdminWhatsApp({ users }: { users: UserData[] }) {
                     <button onClick={handleCheckStatus} disabled={isCheckingStatus} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition-colors dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 disabled:opacity-50">
                         {isCheckingStatus ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />} 3. Verificar Status
                     </button>
+
+                    {config?.status && config.status !== 'disconnected' && (
+                        <button onClick={handleRestartInstance} disabled={isRestarting} className="bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition-colors dark:bg-red-900/20 dark:text-red-400 disabled:opacity-50 ml-auto border border-red-100 dark:border-red-900/30">
+                            {isRestarting ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />} Apagar Instância
+                        </button>
+                    )}
                 </div>
 
                 {qrCode && !isConnected && (
@@ -671,11 +684,11 @@ function AdminWhatsApp({ users }: { users: UserData[] }) {
                     <div className="space-y-4">
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Número (com DDD)</label>
-                            <input type="text" value={testPhone} onChange={e => setTestPhone(e.target.value)} placeholder="Ex: 556299999999" className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl" />
+                            <input type="text" value={testPhone} onChange={e => setTestPhone(e.target.value)} placeholder="Ex: 556299999999" className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white" />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Mensagem</label>
-                            <textarea value={testMessage} onChange={e => setTestMessage(e.target.value)} rows={3} className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl resize-none"></textarea>
+                            <textarea value={testMessage} onChange={e => setTestMessage(e.target.value)} rows={3} className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl resize-none text-slate-900 dark:text-white"></textarea>
                         </div>
                         <button onClick={handleSendTest} disabled={isTesting || !isConnected} className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             {isTesting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />} Enviar Teste
@@ -696,7 +709,7 @@ function AdminWhatsApp({ users }: { users: UserData[] }) {
                     <div className="space-y-4">
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Mensagem (Suporta *negrito* etc)</label>
-                            <textarea value={broadcastMessage} onChange={e => setBroadcastMessage(e.target.value)} rows={4} className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl resize-none" placeholder="Digite o aviso geral..."></textarea>
+                            <textarea value={broadcastMessage} onChange={e => setBroadcastMessage(e.target.value)} rows={4} className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl resize-none text-slate-900 dark:text-white" placeholder="Digite o aviso geral..."></textarea>
                         </div>
                         <button onClick={handleBroadcast} disabled={isBroadcasting || !isConnected} className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-red-500/20">
                             {isBroadcasting ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />} Enviar para Todos
@@ -704,6 +717,117 @@ function AdminWhatsApp({ users }: { users: UserData[] }) {
                     </div>
                 </div>
 
+            </div>
+        </div>
+    );
+}
+
+interface FeedbackData {
+    id: string;
+    rating: number;
+    comment: string;
+    userEmail: string;
+    userId: string;
+    createdAt: any;
+    platform: string;
+}
+
+function AdminFeedback() {
+    const [feedbacks, setFeedbacks] = useState<FeedbackData[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchFeedback = async () => {
+        setLoading(true);
+        try {
+            const q = query(collection(db, 'app_feedback'), orderBy('createdAt', 'desc'));
+            const snapshot = await getDocs(q);
+            const list = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as FeedbackData));
+            setFeedbacks(list);
+        } catch (error) {
+            console.error("Error fetching feedback:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchFeedback();
+    }, []);
+
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <h3 className="font-bold text-lg text-slate-800 dark:text-white">Avaliações do Aplicativo</h3>
+                <button
+                    onClick={fetchFeedback}
+                    className="p-2 text-slate-500 hover:text-indigo-600 transition-colors"
+                    title="Atualizar"
+                >
+                    <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+                </button>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                    <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 text-sm font-semibold">
+                        <tr>
+                            <th className="p-4">Avaliação</th>
+                            <th className="p-4">Usuário</th>
+                            <th className="p-4">Data</th>
+                            <th className="p-4">Comentário</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
+                        {loading ? (
+                            <tr>
+                                <td colSpan={4} className="p-8 text-center text-slate-500">
+                                    <div className="flex justify-center items-center gap-2">
+                                        <Loader2 className="animate-spin" size={20} />
+                                        Carregando avaliações...
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : feedbacks.length === 0 ? (
+                            <tr>
+                                <td colSpan={4} className="p-8 text-center text-slate-500">
+                                    Nenhuma avaliação encontrada.
+                                </td>
+                            </tr>
+                        ) : (
+                            feedbacks.map(item => (
+                                <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-1">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                <Star
+                                                    key={star}
+                                                    size={16}
+                                                    className={star <= item.rating ? "fill-amber-400 text-amber-400" : "text-slate-300"}
+                                                />
+                                            ))}
+                                            <span className="ml-1 font-bold text-slate-700 dark:text-slate-200">{item.rating}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="font-medium text-slate-800 dark:text-white">{item.userEmail}</div>
+                                        <div className="text-xs text-slate-400">ID: {item.userId.slice(0, 8)}...</div>
+                                    </td>
+                                    <td className="p-4 text-slate-500 whitespace-nowrap">
+                                        {item.createdAt?.toDate ? format(item.createdAt.toDate(), 'dd/MM/yyyy HH:mm') : '-'}
+                                    </td>
+                                    <td className="p-4">
+                                        <p className="text-slate-600 dark:text-slate-300 max-w-md break-words">
+                                            {item.comment || <span className="italic text-slate-400">Sem comentário</span>}
+                                        </p>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
             </div>
         </div>
     );

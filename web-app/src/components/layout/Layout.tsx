@@ -20,6 +20,8 @@ import { checkDueBills, requestNotificationPermission, sendSystemNotification } 
 import type { DueBill } from '../../services/alertService';
 import { Toast } from '../ui/Toast';
 import { NotificationList } from '../ui/NotificationList';
+import { FeedbackModal } from '../ui/FeedbackModal';
+import { MessageCircleHeart } from 'lucide-react'; // For the feedback icon
 
 export const Layout = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -31,6 +33,7 @@ export const Layout = () => {
     const [toast, setToast] = useState<{ message: string, isVisible: boolean }>({ message: '', isVisible: false });
     const [alerts, setAlerts] = useState<DueBill[]>([]);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
+    const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
     // Apply Theme & Dark Mode
     useEffect(() => {
@@ -188,6 +191,13 @@ export const Layout = () => {
 
                     <div className="p-4 border-t border-slate-100 dark:border-slate-700">
                         <button
+                            onClick={() => setIsFeedbackOpen(true)}
+                            className="flex items-center w-full gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 transition-colors rounded-xl hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-600 dark:hover:text-amber-400"
+                        >
+                            <MessageCircleHeart size={20} />
+                            <span>Classificar App</span>
+                        </button>
+                        <button
                             onClick={handleLogout}
                             className="flex items-center w-full gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 transition-colors rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400"
                         >
@@ -207,6 +217,12 @@ export const Layout = () => {
                     <Outlet />
                 </div>
             </main>
+
+            {/* Feedback Modal */}
+            <FeedbackModal
+                isOpen={isFeedbackOpen}
+                onClose={() => setIsFeedbackOpen(false)}
+            />
 
             {/* Overlay for mobile menu */}
             {isOpen && (

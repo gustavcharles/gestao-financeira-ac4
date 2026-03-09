@@ -4,7 +4,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { Trash2, Plus, GripVertical, CheckCircle2, X, Bell, BellOff, BellRing, Loader2, MessageCircle, ExternalLink, Phone, Save } from 'lucide-react';
+import { Trash2, Plus, GripVertical, CheckCircle2, X, Bell, BellOff, BellRing, Loader2, MessageCircle, Phone, Save } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { ReportGenerator } from '../components/reports/ReportGenerator';
 import { CategoryIconPicker } from '../components/ui/CategoryIconPicker';
@@ -337,37 +337,6 @@ export const Config = () => {
             {/* Push Notifications Section */}
             <NotificationsCard />
 
-            {/* Support Section */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-slate-100 dark:border-slate-700">
-                    <h3 className="font-bold text-lg text-slate-800 dark:text-white mb-1">Suporte ao Cliente</h3>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm">Precisa de ajuda? Fale conosco diretamente pelo WhatsApp.</p>
-                </div>
-                <div className="p-6">
-                    <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 shrink-0">
-                                <MessageCircle size={24} />
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-slate-800 dark:text-white">Suporte via WhatsApp</h4>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">Atendimento humanizado para tirar suas dúvidas.</p>
-                            </div>
-                        </div>
-
-                        <a
-                            href="https://wa.me/5562982755654"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-emerald-500/25 w-full md:w-auto justify-center"
-                        >
-                            <MessageCircle size={20} />
-                            Falar com Suporte
-                            <ExternalLink size={14} className="opacity-50" />
-                        </a>
-                    </div>
-                </div>
-            </div>
 
             {/* Reports Section */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
@@ -389,6 +358,20 @@ export const Config = () => {
                 confirmText="Excluir"
                 cancelText="Cancelar"
             />
+
+            {/* Floating WhatsApp Support Button */}
+            <a
+                href="https://wa.me/5562982755654"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Falar com Suporte"
+                className="fixed bottom-24 md:bottom-8 right-6 w-14 h-14 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-2xl transition-all hover:scale-110 active:scale-95 z-40 group"
+            >
+                <div className="absolute right-full mr-3 px-3 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-bold rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                    Precisa de ajuda?
+                </div>
+                <MessageCircle size={30} />
+            </a>
         </div>
     );
 };

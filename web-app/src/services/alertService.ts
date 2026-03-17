@@ -21,7 +21,7 @@ export const checkDueBills = async (userId: string): Promise<DueBill[]> => {
         const todayStr = today.toISOString().split('T')[0];
 
         const q = query(
-            collection(db, 'transactions'),
+            collection(db, 'transacoes'),
             where('userId', '==', userId),
             where('type', '==', 'Despesa'),
             where('status', '==', 'pending'),

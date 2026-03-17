@@ -39,7 +39,8 @@ export const saveWhatsAppConfig = async (config: Partial<WhatsAppConfig>) => {
 
 // Funções para chamar as Cloud Functions
 const ADMIN_KEY = "ac4migrate2026"; // Chave de proteção provisória definida no back-end
-const FUNCTIONS_BASE = "https://us-central1-controle-contas-ac4.cloudfunctions.net";
+const PROJECT_ID = import.meta.env.VITE_FIREBASE_PROJECT_ID || "controle-contas-ac4";
+const FUNCTIONS_BASE = `https://us-central1-${PROJECT_ID}.cloudfunctions.net`;
 
 export const createWhatsAppInstance = async () => {
     try {
@@ -50,7 +51,8 @@ export const createWhatsAppInstance = async () => {
         if (!response.ok) throw new Error(data.error?.message || data.error || "Erro ao criar instância");
         return data;
     } catch (error: any) {
-        throw new Error(error.message);
+        console.error("error in createWhatsAppInstance:", error);
+        throw new Error(error instanceof Error ? error.message : String(error));
     }
 };
 
@@ -63,7 +65,8 @@ export const deleteWhatsAppInstance = async () => {
         if (!response.ok) throw new Error(data.error?.message || data.error || "Erro ao deletar instância");
         return data;
     } catch (error: any) {
-        throw new Error(error.message);
+        console.error("error in deleteWhatsAppInstance:", error);
+        throw new Error(error instanceof Error ? error.message : String(error));
     }
 };
 
@@ -74,7 +77,8 @@ export const getWhatsAppQRCode = async () => {
         if (!response.ok) throw new Error(data.error?.message || data.error || "Erro ao buscar QR Code");
         return data.data; // Retorna o base64
     } catch (error: any) {
-        throw new Error(error.message);
+        console.error("error in getWhatsAppQRCode:", error);
+        throw new Error(error instanceof Error ? error.message : String(error));
     }
 };
 
@@ -85,7 +89,8 @@ export const checkWhatsAppStatus = async () => {
         if (!response.ok) throw new Error(data.error?.message || data.error || "Erro ao buscar status");
         return data.data?.instance?.state || "disconnected";
     } catch (error: any) {
-        throw new Error(error.message);
+        console.error("error in checkWhatsAppStatus:", error);
+        throw new Error(error instanceof Error ? error.message : String(error));
     }
 };
 
@@ -103,7 +108,8 @@ export const sendWhatsAppTest = async (phone: string, message: string) => {
         }
         return data.success;
     } catch (error: any) {
-        throw new Error(error.message);
+        console.error("error in sendWhatsAppTest:", error);
+        throw new Error(error instanceof Error ? error.message : String(error));
     }
 };
 
@@ -118,6 +124,7 @@ export const sendWhatsAppBroadcast = async (message: string) => {
         if (!response.ok) throw new Error(data.error || "Erro no broadcast");
         return data;
     } catch (error: any) {
-        throw new Error(error.message);
+        console.error("error in whatsappBroadcast:", error);
+        throw new Error(error instanceof Error ? error.message : String(error));
     }
 };

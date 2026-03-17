@@ -538,13 +538,22 @@ function AdminWhatsApp({ users }: { users: UserData[] }) {
         }
     };
 
-    // Polling QR Code a cada 15 segundos para não expirar na tela
+    // Polling do status e do QR Code
     useEffect(() => {
-        let interval: ReturnType<typeof setInterval>;
+        let qrInterval: ReturnType<typeof setInterval>;
+        let statusInterval: ReturnType<typeof setInterval>;
+        
         const currentlyConnected = config?.status === 'open';
 
+        // Se tem QR Code e não está conectado, monitora o status mais de perto
         if (qrCode && !currentlyConnected) {
-            interval = setInterval(async () => {
+            // Polling de STATUS (rápido - 5s) para detectar a conexão assim que o usuário ler
+            statusInterval = setInterval(async () => {
+                await handleCheckStatus();
+            }, 5000);
+
+            // Polling do QR CODE (lento - 40s) apenas para não deixar expirar
+            qrInterval = setInterval(async () => {
                 try {
                     const data = await getWhatsAppQRCode();
                     if (data && data.base64) {
@@ -553,10 +562,17 @@ function AdminWhatsApp({ users }: { users: UserData[] }) {
                 } catch (e) {
                     console.error('Erro no polling do QR Code', e);
                 }
-            }, 10000); // 10s para garantir
+            }, 40000);
         }
+
+        // Se conectou, limpa o QR Code imediatamente
+        if (currentlyConnected && qrCode) {
+            setQrCode(null);
+        }
+
         return () => {
-            if (interval) clearInterval(interval);
+            if (qrInterval) clearInterval(qrInterval);
+            if (statusInterval) clearInterval(statusInterval);
         };
     }, [qrCode, config?.status]);
 
@@ -650,7 +666,7 @@ function AdminWhatsApp({ users }: { users: UserData[] }) {
                     </button>
                     {!isConnected && (
                         <button onClick={handleGetQR} disabled={isLoadingQR} className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition-colors dark:bg-blue-900/30 dark:text-blue-400 disabled:opacity-50">
-                            {isLoadingQR ? <Loader2 size={16} className="animate-spin" /> : <QrCode size={16} />} 2. Ver QR Code (Atualiza a cada 15s)
+                            {isLoadingQR ? <Loader2 size={16} className="animate-spin" /> : <QrCode size={16} />} 2. Ver QR Code (Atualiza a cada 40s)
                         </button>
                     )}
                     <button onClick={handleCheckStatus} disabled={isCheckingStatus} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition-colors dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 disabled:opacity-50">

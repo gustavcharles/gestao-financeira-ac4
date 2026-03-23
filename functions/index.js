@@ -1,9 +1,11 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onRequest } = require("firebase-functions/v2/https");
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
-const { format, addHours } = require("date-fns");
+const { format, addHours, startOfDay } = require("date-fns");
 const { toZonedTime } = require("date-fns-tz");
 const cors = require("cors")({ origin: true });
+const { generateShiftsForBackend } = require("./utils/generator");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -26,9 +28,11 @@ exports.sendShiftReminders = onSchedule(
         const windowStart = now; 
         const windowEnd = addHours(now, 36); // Janela de 36h para garantir que pegamos todo o dia seguinte
 
-        console.log(`[sendShiftReminders] Buscando plantões entre ${windowStart.toISOString()} e ${windowEnd.toISOString()}`);
+        console.log(`[sendShiftReminders] Iniciando... Janela: ${windowStart.toISOString()} - ${windowEnd.toISOString()}`);
 
-        // Buscar todos os ShiftEvents na janela de 0-24h
+        const targetShifts = [];
+
+        // 1. Buscar plantões salvos explicitamente na coleção 'shifts'
         const shiftsSnap = await db
             .collection("shifts")
             .where("startTime", ">=", admin.firestore.Timestamp.fromDate(windowStart))
@@ -36,23 +40,42 @@ exports.sendShiftReminders = onSchedule(
             .where("status", "in", ["scheduled", "confirmed"])
             .get();
 
-        if (shiftsSnap.empty) {
+        shiftsSnap.docs.forEach(doc => {
+            targetShifts.push({ id: doc.id, ...doc.data(), isFromCollection: true });
+        });
+
+        // 2. Buscar escalas ativas para gerar plantões dinâmicos
+        const scalesSnap = await db.collection("scales").where("isActive", "==", true).get();
+        console.log(`[sendShiftReminders] Processando ${scalesSnap.docs.length} escalas...`);
+
+        scalesSnap.docs.forEach(doc => {
+            const scale = { id: doc.id, ...doc.data() };
+            // Gerar plantões para esta escala na janela atual
+            const generated = generateShiftsForBackend(scale, windowStart, windowEnd);
+            
+            generated.forEach(gen => {
+                // Só adiciona se não houver um override já na coleção (baseado no ID determinístico)
+                if (!targetShifts.some(s => s.id === gen.id)) {
+                    targetShifts.push({ ...gen, isFromCollection: false });
+                }
+            });
+        });
+
+        if (targetShifts.length === 0) {
             console.log("[sendShiftReminders] Nenhum plantão encontrado na janela.");
             return;
         }
 
-        console.log(`[sendShiftReminders] ${shiftsSnap.docs.length} plantões encontrados.`);
+        console.log(`[sendShiftReminders] ${targetShifts.length} plantões para notificar.`);
 
         // Agrupar por userId para buscar tokens uma vez por usuário
         const shiftsByUser = {};
-        shiftsSnap.docs.forEach((doc) => {
-            const shift = { id: doc.id, ...doc.data() };
+        targetShifts.forEach((shift) => {
             if (!shiftsByUser[shift.userId]) shiftsByUser[shift.userId] = [];
             shiftsByUser[shift.userId].push(shift);
         });
 
         const sendPromises = Object.entries(shiftsByUser).map(async ([userId, shifts]) => {
-            // Buscar dados do usuário (tokens FCM, telefone, nome)
             const userDoc = await db.collection("users").doc(userId).get();
             if (!userDoc.exists) return;
 
@@ -61,10 +84,10 @@ exports.sendShiftReminders = onSchedule(
             const phone = userData.phone;
             const userName = userData.displayName || userData.email?.split('@')[0] || "Combatente";
 
-            // Enviar uma notificação por plantão
             for (const shift of shifts) {
-                const startTime = shift.startTime.toDate();
-                const endTime = shift.endTime.toDate();
+                const startTime = shift.startTime.toDate ? shift.startTime.toDate() : new Date(shift.startTime);
+                const endTime = shift.endTime.toDate ? shift.endTime.toDate() : new Date(shift.endTime);
+                
                 const zonedStartTime = toZonedTime(startTime, BRAZIL_TZ);
                 const zonedEndTime = toZonedTime(endTime, BRAZIL_TZ);
                 
@@ -101,23 +124,19 @@ exports.sendShiftReminders = onSchedule(
                                 icon: "/pwa-192x192.png",
                                 badge: "/pwa-192x192.png",
                             },
-                            fcmOptions: {
-                                link: "/escalas",
-                            },
+                            fcmOptions: { link: "/escalas" },
                         },
                     };
 
                     try {
                         const response = await messaging.sendEachForMulticast(message);
-                        console.log(`[sendShiftReminders] FCM para userId=${userId}: ${response.successCount} ok`);
-                        
-                        // Limpeza de tokens inválidos (omitido por brevidade aqui para focar no WhatsApp)
+                        console.log(`[sendShiftReminders] FCM ok para ${userId} (shift ${shift.id})`);
                     } catch (err) {
-                        console.error(`[sendShiftReminders] Erro FCM para userId=${userId}:`, err);
+                        console.error(`[sendShiftReminders] Erro FCM para ${userId}:`, err);
                     }
                 }
 
-                // --- WhatsApp Reminder com Novo Template ---
+                // WhatsApp Reminder
                 if (phone) {
                     const waMessage = `Olá, ${userName} !\n\n` +
                         `Atenção para o seu próximo plantão.\n\n` +
@@ -135,16 +154,23 @@ exports.sendShiftReminders = onSchedule(
     }
 );
 
-const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 
-exports.onShiftConfirmed = onDocumentUpdated(
+// --- WHATSAPP / EVOLUTION API INTEGRATION ---
+
+exports.onShiftConfirmed = onDocumentWritten(
     "shifts/{shiftId}",
     async (event) => {
-        const before = event.data.before.data();
-        const after = event.data.after.data();
+        const before = event.data?.before?.data();
+        const after = event.data?.after?.data();
 
-        // Só envia se o status mudou para 'confirmed'
-        if (before.status === "confirmed" || after.status !== "confirmed") {
+        // Se o documento foi deletado, não faz nada
+        if (!after) return;
+
+        // Só envia se o status agora é 'confirmed' E (era diferente ou não existia)
+        const wasConfirmed = before && before.status === "confirmed";
+        const isNowConfirmed = after.status === "confirmed";
+
+        if (wasConfirmed || !isNowConfirmed) {
             return;
         }
 
@@ -166,8 +192,8 @@ exports.onShiftConfirmed = onDocumentUpdated(
             return;
         }
 
-        const startTime = after.startTime.toDate();
-        const endTime = after.endTime.toDate();
+        const startTime = after.startTime.toDate ? after.startTime.toDate() : new Date(after.startTime);
+        const endTime = after.endTime.toDate ? after.endTime.toDate() : new Date(after.endTime);
         const zonedStartTime = toZonedTime(startTime, BRAZIL_TZ);
         const zonedEndTime = toZonedTime(endTime, BRAZIL_TZ);
 

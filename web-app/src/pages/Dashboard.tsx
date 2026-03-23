@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { ExtraordinaryHoursCard } from '../components/dashboard/ExtraordinaryHoursCard';
+import { ExpenseForecastCard } from '../components/dashboard/ExpenseForecastCard';
 
 // ... existing imports ...
 
@@ -320,7 +321,7 @@ export const Dashboard = () => {
             )}
 
             {/* Scales & Finance Summary */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
 
                 {/* Main Feature Card: Saldo (Now 1 col) */}
                 <div className="relative overflow-hidden bg-gradient-to-br from-primary-600 to-slate-900 rounded-3xl p-6 text-white shadow-xl shadow-primary-900/10 flex flex-col h-full">
@@ -370,6 +371,11 @@ export const Dashboard = () => {
                         ac4Total={scalesInsights.ac4Total}
                         ac4Hours={scalesInsights.ac4Hours}
                     />
+                </div>
+
+                {/* Expense Forecast Card (New) */}
+                <div className="lg:col-span-1">
+                    <ExpenseForecastCard transactions={transactions} />
                 </div>
 
                 {/* Scales / Next Shift Widget */}
@@ -440,7 +446,7 @@ export const Dashboard = () => {
             )}
 
             {/* Chart Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 pb-20 md:pb-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 pb-20 md:pb-0">
 
                 {/* 1. Area Chart (Fluxo Diário) */}
                 <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm">

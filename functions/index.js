@@ -98,9 +98,23 @@ exports.sendShiftReminders = onSchedule(
 
                 const shiftName = shift.shiftTypeSnapshot?.name ?? "Plantão";
                 const category = shift.scaleCategory ?? "";
+                const reminderKey = `reminder_${userId}_${shift.id}`;
+
+                // Check if already notified in this window (prevents duplicates from overlapping runs)
+                const historyRef = db.collection("notification_history").doc(reminderKey);
+                const historySnap = await historyRef.get();
+                if (historySnap.exists) {
+                    const sentAt = historySnap.data().sentAt.toDate();
+                    const hoursSince = (now.getTime() - sentAt.getTime()) / (1000 * 60 * 60);
+                    if (hoursSince < 20) {
+                        console.log(`[sendShiftReminders] Já notificado: ${reminderKey}. Pulando.`);
+                        continue;
+                    }
+                }
 
                 // Push Notification
-                if (fcmTokens.length > 0) {
+                const uniqueTokens = [...new Set(fcmTokens)];
+                if (uniqueTokens.length > 0) {
                     const title = `🔔 Plantão hoje — ${timeStr}`;
                     const body = `${shiftName}${category ? ` (${category})` : ""} · ${dateStr}`;
 
@@ -111,7 +125,7 @@ exports.sendShiftReminders = onSchedule(
                             userId,
                             type: "shift_reminder",
                         },
-                        tokens: fcmTokens,
+                        tokens: uniqueTokens,
                         android: {
                             notification: {
                                 icon: "ic_notification",
@@ -129,8 +143,10 @@ exports.sendShiftReminders = onSchedule(
                     };
 
                     try {
-                        const response = await messaging.sendEachForMulticast(message);
+                        await messaging.sendEachForMulticast(message);
                         console.log(`[sendShiftReminders] FCM ok para ${userId} (shift ${shift.id})`);
+                        // Marcar como enviado
+                        await historyRef.set({ sentAt: admin.firestore.Timestamp.fromDate(now), userId, shiftId: shift.id });
                     } catch (err) {
                         console.error(`[sendShiftReminders] Erro FCM para ${userId}:`, err);
                     }

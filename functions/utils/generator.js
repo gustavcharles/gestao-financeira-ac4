@@ -1,4 +1,7 @@
 const { addDays, differenceInDays, addHours, startOfDay, isAfter, isBefore } = require('date-fns');
+const { fromZonedTime } = require('date-fns-tz');
+
+const BRAZIL_TZ = 'America/Sao_Paulo';
 
 /**
  * Minimal version of the shift generator for backend use.
@@ -26,29 +29,22 @@ function generateShiftsForBackend(scale, rangeStart, rangeEnd) {
         return [];
     }
 
+    const startTimeStr = scale.customStartTime || "08:00";
+    const endTimeStr = scale.customEndTime || "20:00";
+    const [sH, sM] = startTimeStr.split(':').map(Number);
+    const [eH, eM] = endTimeStr.split(':').map(Number);
+
+    // Calculate duration once
+    const sDate = new Date(2000, 0, 1, sH, sM);
+    let eDate = new Date(2000, 0, 1, eH, eM);
+    if (eDate < sDate) eDate = addDays(eDate, 1);
+    const durationHours = (eDate.getTime() - sDate.getTime()) / (1000 * 60 * 60);
+
     // One-off (single shift)
     if (scale.isOneOff) {
         if (!isAfter(startOfScale, effectiveEndRange) && !isBefore(startOfScale, startOfRange)) {
-            const shiftStartDateTime = new Date(startOfScale);
-            // We use the custom time or a default if not present (backend doesn't have DEFAULT_SHIFT_TYPES easily available)
-            // But we assume the scale object passed from Firestore has the necessary snapshot info if it was ever edited,
-            // or we use the custom times saved in the scale doc.
-            const startTimeStr = scale.customStartTime || "08:00";
-            const endTimeStr = scale.customEndTime || "20:00";
-            
-            const [sH, sM] = startTimeStr.split(':').map(Number);
-            shiftStartDateTime.setHours(sH, sM, 0, 0);
-
-            // Simple duration calculation or default 12h
-            let durationHours = 12;
-            if (scale.customStartTime && scale.customEndTime) {
-                const [eH, eM] = endTimeStr.split(':').map(Number);
-                const sDate = new Date(2000, 0, 1, sH, sM);
-                let eDate = new Date(2000, 0, 1, eH, eM);
-                if (eDate < sDate) eDate = addDays(eDate, 1);
-                durationHours = (eDate.getTime() - sDate.getTime()) / (1000 * 60 * 60);
-            }
-
+            const dateStrPart = scaleStartDate.toISOString().split('T')[0];
+            const shiftStartDateTime = fromZonedTime(`${dateStrPart} ${startTimeStr}:00`, BRAZIL_TZ);
             const shiftEndDateTime = addHours(shiftStartDateTime, durationHours);
             const dateStr = shiftStartDateTime.toISOString().split('T')[0];
 
@@ -81,22 +77,8 @@ function generateShiftsForBackend(scale, rangeStart, rangeEnd) {
         }
 
         if (shouldGenerate) {
-            const startTimeStr = scale.customStartTime || "08:00";
-            const endTimeStr = scale.customEndTime || "20:00";
-            const [sH, sM] = startTimeStr.split(':').map(Number);
-            
-            const shiftStartDateTime = new Date(currentIterDate);
-            shiftStartDateTime.setHours(sH, sM, 0, 0);
-
-            let durationHours = 12; // Default
-            if (scale.customStartTime && scale.customEndTime) {
-                 const [eH, eM] = endTimeStr.split(':').map(Number);
-                 const sDate = new Date(2000, 0, 1, sH, sM);
-                 let eDate = new Date(2000, 0, 1, eH, eM);
-                 if (eDate < sDate) eDate = addDays(eDate, 1);
-                 durationHours = (eDate.getTime() - sDate.getTime()) / (1000 * 60 * 60);
-            }
-
+            const dateStrPart = currentIterDate.toISOString().split('T')[0];
+            const shiftStartDateTime = fromZonedTime(`${dateStrPart} ${startTimeStr}:00`, BRAZIL_TZ);
             const shiftEndDateTime = addHours(shiftStartDateTime, durationHours);
             const dateStr = currentIterDate.toISOString().split('T')[0];
 

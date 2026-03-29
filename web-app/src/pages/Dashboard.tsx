@@ -363,13 +363,14 @@ export const Dashboard = () => {
                     <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-primary-500 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
                 </div>
 
-                {/* Extraordinary Hours Card (New) */}
                 <div className="lg:col-span-1">
                     <ExtraordinaryHoursCard
                         shifts={shifts}
                         selectedMonth={selectedMonth}
                         ac4Total={scalesInsights.ac4Total}
                         ac4Hours={scalesInsights.ac4Hours}
+                        goal={settings.ac4MonthlyGoal || 48}
+                        onSaveGoal={(newGoal) => saveSettings({ ac4MonthlyGoal: newGoal })}
                     />
                 </div>
 

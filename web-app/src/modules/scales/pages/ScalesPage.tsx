@@ -8,6 +8,95 @@ import { ScaleService } from '../services/scaleService';
 import { ShiftDetailsModal } from '../components/ShiftDetailsModal';
 import { Toast, type ToastType } from '../../../components/ui/Toast';
 import type { ShiftScale, ShiftEvent } from '../types';
+import { DEFAULT_SHIFT_TYPES } from '../types';
+import { calculateShiftValue } from '../utils/ac4Calculator';
+import { addTransaction } from '../../../services/transactions';
+import { formatCurrency, getShiftedReferenceMonth } from '../../../utils/finance';
+import { format, differenceInMinutes } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { DollarSign } from 'lucide-react';
+
+// Modal para confirmar geração de receita após salvar escala AC-4
+interface IncomeConfirmModalProps {
+    shiftDate: string;
+    shiftName: string;
+    value: number;
+    onConfirm: () => void;
+    onSkip: () => void;
+    isLoading: boolean;
+}
+
+const IncomeConfirmModal: React.FC<IncomeConfirmModalProps> = ({
+    shiftDate, shiftName, value, onConfirm, onSkip, isLoading
+}) => {
+    const formattedDate = format(new Date(shiftDate + 'T12:00:00'), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm border border-emerald-100 dark:border-emerald-800/30 overflow-hidden">
+                {/* Header */}
+                <div className="bg-emerald-50 dark:bg-emerald-900/30 p-5 border-b border-emerald-100 dark:border-emerald-800/30">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-800/50 flex items-center justify-center">
+                            <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-900 dark:text-white text-sm">Escala salva com sucesso!</h3>
+                            <p className="text-xs text-emerald-700 dark:text-emerald-400">Deseja gerar a receita agora?</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-5 space-y-3">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                        Gerar receita financeira para o plantão:
+                    </p>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-1.5">
+                        <div className="flex justify-between text-sm">
+                            <span className="text-gray-500 dark:text-gray-400">Tipo:</span>
+                            <span className="font-medium text-gray-800 dark:text-gray-200">{shiftName}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                            <span className="text-gray-500 dark:text-gray-400">Data:</span>
+                            <span className="font-medium text-gray-800 dark:text-gray-200 capitalize">{formattedDate}</span>
+                        </div>
+                        <div className="flex justify-between text-sm border-t border-gray-200 dark:border-gray-600 pt-1.5 mt-1.5">
+                            <span className="text-gray-500 dark:text-gray-400">Valor estimado:</span>
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(value)}</span>
+                        </div>
+                    </div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                        A receita será criada como "Pendente" e o mês de referência será calculado automaticamente (+2 meses para AC-4).
+                    </p>
+                </div>
+
+                {/* Footer */}
+                <div className="px-5 pb-5 flex gap-3">
+                    <button
+                        onClick={onSkip}
+                        disabled={isLoading}
+                        className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
+                    >
+                        Agora não
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        disabled={isLoading}
+                        className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                    >
+                        {isLoading ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <DollarSign className="w-4 h-4" />
+                        )}
+                        Gerar Receita
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export const ScalesPage: React.FC = () => {
     const { currentUser: user } = useAuth();
@@ -15,9 +104,6 @@ export const ScalesPage: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [selectedShift, setSelectedShift] = useState<ShiftEvent | null>(null);
 
-    // Fix: Handle multiple active scales (duplicate bug)
-    // We allow multiple active scales now (e.g. Main Scale + One Offs)
-    // We allow multiple active scales now (e.g. Main Scale + One Offs)
     const [editingScaleId, setEditingScaleId] = useState<string | null>(null);
     const [initialFormDate, setInitialFormDate] = useState<Date | undefined>(undefined);
 
@@ -27,22 +113,35 @@ export const ScalesPage: React.FC = () => {
         isVisible: false
     });
 
+    // State for the income generation prompt after saving AC-4 scale
+    const [incomePrompt, setIncomePrompt] = useState<{
+        shiftDate: string;
+        shiftName: string;
+        value: number;
+        startDate: Date;
+        endDate: Date;
+        hours: number;
+        userId: string;
+    } | null>(null);
+    const [isGeneratingIncome, setIsGeneratingIncome] = useState(false);
+
     const showToast = (message: string, type: ToastType = 'info') => {
         setToast({ message, type, isVisible: true });
     };
 
     const activeScaleToEdit = editingScaleId ? scales.find(s => s.id === editingScaleId) : undefined;
-    // const hasDuplicates = scales.filter(s => s.isActive).length > 1; // Removed unused check
 
     const handleSaveScale = async (scaleData: Omit<ShiftScale, 'id' | 'createdAt' | 'updatedAt'>) => {
         try {
             if (!user) return;
 
             if (activeScaleToEdit) {
-                // Update existing
+                // Update existing — no income prompt on edit
                 await ScaleService.updateScale(activeScaleToEdit.id, scaleData);
+                await refreshScales();
+                setIsEditing(false);
             } else {
-                // Create new
+                // Create new scale
                 const newScale: Omit<ShiftScale, 'id'> = {
                     ...scaleData,
                     createdAt: new Date() as any,
@@ -50,13 +149,84 @@ export const ScalesPage: React.FC = () => {
                     isActive: true
                 };
                 await ScaleService.createScale(newScale as any);
-            }
+                await refreshScales();
+                setIsEditing(false);
 
-            await refreshScales();
-            setIsEditing(false);
+                // AC-4: offer income generation
+                if (scaleData.category === 'AC-4') {
+                    const shiftType = DEFAULT_SHIFT_TYPES.find(t => t.id === scaleData.defaultShiftTypeId) || DEFAULT_SHIFT_TYPES[0];
+
+                    const startDateObj = scaleData.startDate.toDate();
+                    const [y, m, d] = [startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate()];
+
+                    let startH: string;
+                    let endH: string;
+
+                    if (scaleData.customStartTime && scaleData.customEndTime) {
+                        startH = scaleData.customStartTime;
+                        endH = scaleData.customEndTime;
+                    } else {
+                        startH = shiftType.startTime;
+                        endH = shiftType.endTime;
+                    }
+
+                    const [sh, sm] = startH.split(':').map(Number);
+                    const [eh, em] = endH.split(':').map(Number);
+
+                    const shiftStart = new Date(y, m, d, sh, sm);
+                    let shiftEnd = new Date(y, m, d, eh, em);
+                    if (shiftEnd <= shiftStart) shiftEnd.setDate(shiftEnd.getDate() + 1);
+
+                    const value = calculateShiftValue(shiftStart, shiftEnd);
+                    const hours = Math.floor(differenceInMinutes(shiftEnd, shiftStart) / 60);
+                    const dateStr = format(startDateObj, 'yyyy-MM-dd');
+
+                    if (value > 0) {
+                        setIncomePrompt({
+                            shiftDate: dateStr,
+                            shiftName: shiftType.name,
+                            value,
+                            startDate: shiftStart,
+                            endDate: shiftEnd,
+                            hours,
+                            userId: user.uid
+                        });
+                    }
+                }
+            }
         } catch (error) {
             console.error("Error saving scale:", error);
             showToast("Erro ao salvar escala via Firestore.", 'error');
+        }
+    };
+
+    const handleConfirmIncome = async () => {
+        if (!incomePrompt) return;
+        setIsGeneratingIncome(true);
+        try {
+            await addTransaction({
+                user_id: incomePrompt.userId,
+                tipo: 'Receita',
+                valor: incomePrompt.value,
+                categoria: 'AC-4',
+                descricao: `Serviço AC-4 - ${incomePrompt.shiftName}`,
+                data: incomePrompt.shiftDate,
+                status: 'Pendente',
+                recorrente: false,
+                mes_referencia: getShiftedReferenceMonth(
+                    new Date(incomePrompt.shiftDate + 'T12:00:00'),
+                    'AC-4',
+                    'Receita'
+                ),
+                hours: incomePrompt.hours
+            });
+            setIncomePrompt(null);
+            showToast(`Receita de ${formatCurrency(incomePrompt.value)} gerada com sucesso!`, 'success');
+        } catch (error: any) {
+            console.error("Erro ao gerar receita:", error);
+            showToast(`Erro ao gerar receita: ${error.message || 'Desconhecido'}`, 'error');
+        } finally {
+            setIsGeneratingIncome(false);
         }
     };
 
@@ -84,27 +254,14 @@ export const ScalesPage: React.FC = () => {
                 }
             } else if (mode === 'following') {
                 if (shiftToDelete.scaleId) {
-                    // Ends the scale the day BEFORE this shift
-                    // So if I click Feb 10, end date should be Feb 9 (or Feb 10 start of day so it doesn't run?)
-                    // terminateScale sets endDate. Generator uses exclude if AFTER endDate.
-                    // If endDate is Feb 9, Feb 10 is after, so it works.
-                    // We need to set endDate to the day BEFORE the selected shift date.
-
-                    // Actually, let's verify generator logic again.
-                    // if (!isAfter(currentIterDate, effectiveEndRange)) -> Include.
-                    // So effectiveEndRange must be the day BEFORE current shift for current shift to be EXCLUDED.
-                    const shiftDate = new Date(shiftToDelete.date + 'T12:00:00'); // Avoid timezone issues
+                    const shiftDate = new Date(shiftToDelete.date + 'T12:00:00');
                     const endDate = new Date(shiftDate);
-                    endDate.setDate(endDate.getDate() - 1); // Day before
+                    endDate.setDate(endDate.getDate() - 1);
 
                     await ScaleService.terminateScale(shiftToDelete.scaleId, endDate);
                     showToast("Recorrência encerrada com sucesso.", 'success');
                 }
             } else {
-                // Single event deletion
-
-                // If it's a generated shift (not manual override), we "cancel" it instead of deleting
-                // We create a "Canceled" status override.
                 const override: ShiftEvent = {
                     ...shiftToDelete,
                     isManualOverride: true,
@@ -115,7 +272,7 @@ export const ScalesPage: React.FC = () => {
                 showToast("Plantão removido com sucesso.", 'success');
             }
 
-            await refreshScales(); // Trigger fetchShifts
+            await refreshScales();
             setSelectedShift(null);
         } catch (error) {
             console.error("Error updating shift:", error);
@@ -127,9 +284,9 @@ export const ScalesPage: React.FC = () => {
         try {
             await ScaleService.duplicateScale(scaleId, newStartDate);
             await refreshScales();
-            refreshShifts(); // Force calendar reload to show new shifts
+            refreshShifts();
             showToast('Escala duplicada com sucesso!', 'success');
-            setSelectedShift(null); // Close modal
+            setSelectedShift(null);
         } catch (error) {
             console.error('Error duplicating scale:', error);
             showToast('Erro ao duplicar escala', 'error');
@@ -176,10 +333,9 @@ export const ScalesPage: React.FC = () => {
     // View principal: Calendário
     return (
         <div className="max-w-6xl mx-auto p-4 space-y-6">
-            {/* Container with flex-col-reverse on mobile to show calendar first */}
             <div className="flex flex-col-reverse md:flex-col space-y-6 space-y-reverse md:space-y-6">
 
-                {/* Header Card - Appears SECOND on mobile, FIRST on desktop */}
+                {/* Header Card */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white dark:bg-gray-800 p-3 md:p-4 rounded-lg shadow gap-3 md:gap-4">
                     <div>
                         <h1 className="text-lg md:text-2xl font-bold dark:text-white">Minhas Escalas</h1>
@@ -197,7 +353,7 @@ export const ScalesPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Calendar - Appears FIRST on mobile, SECOND on desktop */}
+                {/* Calendar */}
                 <div className="relative">
                     {loading && (
                         <div className="absolute inset-0 bg-white/50 dark:bg-gray-800/50 flex justify-center items-center z-10 rounded-lg">
@@ -228,18 +384,17 @@ export const ScalesPage: React.FC = () => {
                             })()}
                             onClose={() => {
                                 setSelectedShift(null);
-                                refreshShifts(); // Refresh calendar after closing modal
+                                refreshShifts();
                             }}
                             onDelete={handleShiftAction}
                             onEditScale={(scaleId) => {
                                 setEditingScaleId(scaleId);
                                 setIsEditing(true);
-                                setSelectedShift(null); // Close shift details
+                                setSelectedShift(null);
                             }}
                             onDuplicateScale={handleDuplicateScale}
                         />
                     )}
-
                 </div>
             </div>
 
@@ -250,7 +405,17 @@ export const ScalesPage: React.FC = () => {
                 onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
             />
 
-
+            {/* Income generation prompt for AC-4 scales */}
+            {incomePrompt && (
+                <IncomeConfirmModal
+                    shiftDate={incomePrompt.shiftDate}
+                    shiftName={incomePrompt.shiftName}
+                    value={incomePrompt.value}
+                    onConfirm={handleConfirmIncome}
+                    onSkip={() => setIncomePrompt(null)}
+                    isLoading={isGeneratingIncome}
+                />
+            )}
         </div>
     );
 };

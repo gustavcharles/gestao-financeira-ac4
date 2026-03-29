@@ -72,7 +72,21 @@ exports.sendShiftReminders = onSchedule(
         const shiftsByUser = {};
         targetShifts.forEach((shift) => {
             if (!shiftsByUser[shift.userId]) shiftsByUser[shift.userId] = [];
-            shiftsByUser[shift.userId].push(shift);
+            
+            // Deduplicação pelo conteúdo (mesmo usuário, horário e nome do plantão)
+            const startTimeStr = shift.startTime.toDate ? shift.startTime.toDate().getTime() : new Date(shift.startTime).getTime();
+            const shiftName = shift.shiftTypeSnapshot?.name ?? "Plantão";
+            
+            const isDuplicate = shiftsByUser[shift.userId].some(s => {
+                const sTime = s.startTime.toDate ? s.startTime.toDate().getTime() : new Date(s.startTime).getTime();
+                return sTime === startTimeStr && (s.shiftTypeSnapshot?.name ?? "Plantão") === shiftName;
+            });
+
+            if (!isDuplicate) {
+                shiftsByUser[shift.userId].push(shift);
+            } else {
+                console.log(`[sendShiftReminders] Pulando duplicata de conteúdo para ${shift.userId}: ${shiftName} em ${startTimeStr}`);
+            }
         });
 
         const sendPromises = Object.entries(shiftsByUser).map(async ([userId, shifts]) => {
@@ -98,18 +112,25 @@ exports.sendShiftReminders = onSchedule(
 
                 const shiftName = shift.shiftTypeSnapshot?.name ?? "Plantão";
                 const category = shift.scaleCategory ?? "";
-                const reminderKey = `reminder_${userId}_${shift.id}`;
+                const reminderKey = `push_${userId}_${shift.id}`;
 
-                // Check if already notified in this window (prevents duplicates from overlapping runs)
+                // Atomic history check (acts as a lock across multiple instances)
                 const historyRef = db.collection("notification_history").doc(reminderKey);
-                const historySnap = await historyRef.get();
-                if (historySnap.exists) {
-                    const sentAt = historySnap.data().sentAt.toDate();
-                    const hoursSince = (now.getTime() - sentAt.getTime()) / (1000 * 60 * 60);
-                    if (hoursSince < 20) {
-                        console.log(`[sendShiftReminders] Já notificado: ${reminderKey}. Pulando.`);
+                try {
+                    // .create() fails if the document already exists
+                    await historyRef.create({ 
+                        sentAt: admin.firestore.Timestamp.fromDate(now), 
+                        userId, 
+                        shiftId: shift.id,
+                        type: 'push'
+                    });
+                } catch (err) {
+                    if (err.code === 6) { // ALREADY_EXISTS
+                        console.log(`[sendShiftReminders] Lock: ${reminderKey} já processado. Pulando.`);
                         continue;
                     }
+                    console.error(`[sendShiftReminders] Erro ao criar lock ${reminderKey}:`, err);
+                    continue; 
                 }
 
                 // Push Notification
@@ -127,13 +148,22 @@ exports.sendShiftReminders = onSchedule(
                         },
                         tokens: uniqueTokens,
                         android: {
+                            collapseKey: reminderKey,
                             notification: {
                                 icon: "ic_notification",
                                 channelId: "shift_reminders",
                                 priority: "high",
                             },
                         },
+                        apns: {
+                            headers: {
+                                'apns-collapse-id': reminderKey,
+                            },
+                        },
                         webpush: {
+                            headers: {
+                               'Topic': reminderKey 
+                            },
                             notification: {
                                 icon: "/pwa-192x192.png",
                                 badge: "/pwa-192x192.png",
@@ -143,10 +173,28 @@ exports.sendShiftReminders = onSchedule(
                     };
 
                     try {
-                        await messaging.sendEachForMulticast(message);
-                        console.log(`[sendShiftReminders] FCM ok para ${userId} (shift ${shift.id})`);
-                        // Marcar como enviado
-                        await historyRef.set({ sentAt: admin.firestore.Timestamp.fromDate(now), userId, shiftId: shift.id });
+                        const response = await messaging.sendEachForMulticast(message);
+                        console.log(`[sendShiftReminders] FCM ok para ${userId} (shift ${shift.id}). Sucesso: ${response.successCount}, Falha: ${response.failureCount}`);
+                        
+                        // Token Cleanup: Remove tokens que não são mais válidos
+                        if (response.failureCount > 0) {
+                            const tokensToRemove = [];
+                            response.responses.forEach((resp, idx) => {
+                                if (!resp.success) {
+                                    const errCode = resp.error?.code;
+                                    if (errCode === 'messaging/registration-token-not-registered' || errCode === 'messaging/invalid-registration-token') {
+                                        tokensToRemove.push(uniqueTokens[idx]);
+                                    }
+                                }
+                            });
+                            
+                            if (tokensToRemove.length > 0) {
+                                console.log(`[sendShiftReminders] Removendo ${tokensToRemove.length} tokens inválidos para ${userId}`);
+                                await db.collection("users").doc(userId).update({
+                                    fcmTokens: admin.firestore.FieldValue.arrayRemove(...tokensToRemove)
+                                });
+                            }
+                        }
                     } catch (err) {
                         console.error(`[sendShiftReminders] Erro FCM para ${userId}:`, err);
                     }

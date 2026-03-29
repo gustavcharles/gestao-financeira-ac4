@@ -16,6 +16,7 @@ export interface UserSettings {
     theme?: 'blue' | 'green' | 'purple';
     darkMode?: boolean;
     showWelcome?: boolean;
+    ac4MonthlyGoal?: number;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -39,7 +40,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
     },
     theme: 'blue',
     darkMode: false,
-    showWelcome: true
+    showWelcome: true,
+    ac4MonthlyGoal: 48
 };
 
 const SETTINGS_COLLECTION = "user_settings";

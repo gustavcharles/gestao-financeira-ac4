@@ -100,6 +100,26 @@ export const DEFAULT_SHIFT_TYPES: ShiftType[] = [
         endTime: '20:00'
     },
     {
+        id: 'plantao_diurno_4',
+        name: 'Plantão Diurno 4h',
+        code: 'D4',
+        color: '#FCD34D', // Amber 300 (lighter)
+        hours: 4,
+        isNightShift: false,
+        startTime: '08:00',
+        endTime: '12:00'
+    },
+    {
+        id: 'plantao_diurno_6',
+        name: 'Plantão Diurno 6h',
+        code: 'D6',
+        color: '#FDE68A', // Amber 200
+        hours: 6,
+        isNightShift: false,
+        startTime: '08:00',
+        endTime: '14:00'
+    },
+    {
         id: 'plantao_diurno_10',
         name: 'Plantão Diurno 10h',
         code: 'D10',

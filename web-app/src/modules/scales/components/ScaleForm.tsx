@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { DEFAULT_SHIFT_TYPES } from '../types';
 import type { ShiftScale, ScalePatternType, ScaleCategory } from '../types';
 import { Timestamp } from 'firebase/firestore';
 import { addYears } from 'date-fns';
+import { calculateShiftValue } from '../utils/ac4Calculator';
+import { formatCurrency } from '../../../utils/finance';
 
 interface ScaleFormProps {
     initialData?: Partial<ShiftScale>;
@@ -33,6 +35,47 @@ export const ScaleForm: React.FC<ScaleFormProps> = ({ initialData, onSubmit, onC
     const [customStartTime, setCustomStartTime] = useState(initialData?.customStartTime || '08:00');
     const [customEndTime, setCustomEndTime] = useState(initialData?.customEndTime || '20:00');
 
+    // Computed: resolve shift type object for the selected ID
+    const selectedShiftType = useMemo(() =>
+        DEFAULT_SHIFT_TYPES.find(t => t.id === defaultShiftTypeId) || DEFAULT_SHIFT_TYPES[0],
+        [defaultShiftTypeId]
+    );
+
+    // Live value calculation for AC-4 category
+    const estimatedValue = useMemo(() => {
+        if (category !== 'AC-4') return null;
+
+        try {
+            const [y, m, d] = startDate.split('-').map(Number);
+
+            let startH: string;
+            let endH: string;
+
+            if (useCustomTime) {
+                startH = customStartTime;
+                endH = customEndTime;
+            } else {
+                startH = selectedShiftType.startTime;
+                endH = selectedShiftType.endTime;
+            }
+
+            const [sh, sm] = startH.split(':').map(Number);
+            const [eh, emin] = endH.split(':').map(Number);
+
+            const shiftStart = new Date(y, m - 1, d, sh, sm);
+            let shiftEnd = new Date(y, m - 1, d, eh, emin);
+
+            // If end <= start, the shift crosses midnight (next day)
+            if (shiftEnd <= shiftStart) {
+                shiftEnd.setDate(shiftEnd.getDate() + 1);
+            }
+
+            return calculateShiftValue(shiftStart, shiftEnd);
+        } catch {
+            return null;
+        }
+    }, [category, startDate, defaultShiftTypeId, useCustomTime, customStartTime, customEndTime, selectedShiftType]);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -50,7 +93,6 @@ export const ScaleForm: React.FC<ScaleFormProps> = ({ initialData, onSubmit, onC
             if (patternType === '24x72') cycleLength = 4;
             if (patternType === '6x18') cycleLength = 1;
             if (patternType === '24x96') cycleLength = 5;
-            // TODO: Custom pattern logic
         }
 
         // Fix: Parse YYYY-MM-DD manually to ensure Local Midnight (avoiding UTC timezone shift)
@@ -135,7 +177,6 @@ export const ScaleForm: React.FC<ScaleFormProps> = ({ initialData, onSubmit, onC
                             <option value="24x72">24x72 (Plt 24h, 3 folgas)</option>
                             <option value="6x18">6x18 (Expediente/Todo dia)</option>
                             <option value="24x96">24x96 (Plt 24h, 4 folgas)</option>
-                            {/* <option value="custom">Personalizado</option> */}
                         </select>
                     </div>
                 </div>
@@ -197,6 +238,18 @@ export const ScaleForm: React.FC<ScaleFormProps> = ({ initialData, onSubmit, onC
                                         className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 border"
                                     />
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Live value display */}
+                        {estimatedValue !== null && (
+                            <div className="mt-3 pt-3 border-t border-emerald-100 dark:border-emerald-800/30 flex items-center justify-between animate-in fade-in duration-300">
+                                <span className="text-sm text-emerald-700 dark:text-emerald-300">
+                                    Valor estimado para esta data:
+                                </span>
+                                <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                                    {formatCurrency(estimatedValue)}
+                                </span>
                             </div>
                         )}
                     </div>

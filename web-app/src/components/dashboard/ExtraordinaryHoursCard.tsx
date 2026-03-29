@@ -8,19 +8,19 @@ interface ExtraordinaryHoursCardProps {
     selectedMonth: string;
     ac4Total: number;
     ac4Hours: number;
+    goal: number;
+    onSaveGoal: (newGoal: number) => void;
 }
 
 export const ExtraordinaryHoursCard: React.FC<ExtraordinaryHoursCardProps> = ({
     shifts,
     selectedMonth,
     ac4Total,
-    ac4Hours
+    ac4Hours,
+    goal,
+    onSaveGoal
 }) => {
-    // Goal State (Persisted in localStorage)
-    const [goal, setGoal] = useState(() => {
-        const saved = localStorage.getItem('ac4_monthly_goal');
-        return saved ? parseInt(saved) : 48; // Default 48h
-    });
+    // Goal State
     const [isEditingGoal, setIsEditingGoal] = useState(false);
     const [tempGoal, setTempGoal] = useState(goal.toString());
 
@@ -31,8 +31,7 @@ export const ExtraordinaryHoursCard: React.FC<ExtraordinaryHoursCardProps> = ({
         if (val > 192) val = 192; // Max limit logic
         if (val < 0) val = 0;
 
-        setGoal(val);
-        localStorage.setItem('ac4_monthly_goal', val.toString());
+        onSaveGoal(val);
         setIsEditingGoal(false);
     };
 

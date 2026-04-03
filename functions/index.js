@@ -202,8 +202,9 @@ exports.sendShiftReminders = onSchedule(
 
                 // WhatsApp Reminder
                 if (phone) {
-                    const waMessage = `Olá, ${userName} !\n\n` +
+                    const waMessage = `Olá, ${userName}!\n\n` +
                         `Atenção para o seu próximo plantão.\n\n` +
+                        `🚨 *${shiftName}*${category ? ` (${category})` : ""}\n` +
                         `📅 Data: ${fullDateStr}\n` +
                         `🕒 Horário: ${timeStr} - ${endTimeStr}\n\n` +
                         `Bom serviço! 🚒`;
@@ -265,9 +266,13 @@ exports.onShiftConfirmed = onDocumentWritten(
         const endTimeStr = format(zonedEndTime, "HH:mm");
         const fullDateStr = format(zonedStartTime, "dd/MM/yyyy");
 
+        const shiftName = after.shiftTypeSnapshot?.name ?? "Plantão";
+        const category = after.scaleCategory ?? "";
+
         const waMessage = `*ESCALA CONFIRMADA* ✅\n\n` +
-            `Olá, ${userName} !\n\n` +
+            `Olá, ${userName}!\n\n` +
             `Atenção para o seu próximo plantão.\n\n` +
+            `🚨 *${shiftName}*${category ? ` (${category})` : ""}\n` +
             `📅 Data: ${fullDateStr}\n` +
             `🕒 Horário: ${timeStr} - ${endTimeStr}\n\n` +
             `Bom serviço! 🚒`;

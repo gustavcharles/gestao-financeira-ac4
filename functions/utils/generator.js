@@ -8,6 +8,15 @@ const BRAZIL_TZ = 'America/Sao_Paulo';
  * Focuses only on generating the timestamps and metadata for reminders.
  */
 function generateShiftsForBackend(scale, rangeStart, rangeEnd) {
+    const DEFAULT_SHIFT_TIMES = {
+        'plantao_diurno_12': { start: '08:00', end: '20:00' },
+        'plantao_diurno_4': { start: '08:00', end: '12:00' },
+        'plantao_diurno_6': { start: '08:00', end: '14:00' },
+        'plantao_diurno_10': { start: '08:00', end: '18:00' },
+        'plantao_noturno_12': { start: '20:00', end: '08:00' },
+        'plantao_24': { start: '08:00', end: '08:00' }
+    };
+
     const shifts = [];
     
     // Normalize dates
@@ -29,15 +38,23 @@ function generateShiftsForBackend(scale, rangeStart, rangeEnd) {
         return [];
     }
 
-    const startTimeStr = scale.customStartTime || "08:00";
-    const endTimeStr = scale.customEndTime || "20:00";
+    let fallbackStart = "08:00";
+    let fallbackEnd = "20:00";
+    if (scale.defaultShiftTypeId && DEFAULT_SHIFT_TIMES[scale.defaultShiftTypeId]) {
+        fallbackStart = DEFAULT_SHIFT_TIMES[scale.defaultShiftTypeId].start;
+        fallbackEnd = DEFAULT_SHIFT_TIMES[scale.defaultShiftTypeId].end;
+    }
+
+    const startTimeStr = scale.customStartTime || fallbackStart;
+    const endTimeStr = scale.customEndTime || fallbackEnd;
     const [sH, sM] = startTimeStr.split(':').map(Number);
     const [eH, eM] = endTimeStr.split(':').map(Number);
 
     // Calculate duration once
     const sDate = new Date(2000, 0, 1, sH, sM);
     let eDate = new Date(2000, 0, 1, eH, eM);
-    if (eDate < sDate) eDate = addDays(eDate, 1);
+    // If end time is before or equal to start time, it means it crosses midnight or is a 24h shift
+    if (eDate <= sDate) eDate = addDays(eDate, 1);
     const durationHours = (eDate.getTime() - sDate.getTime()) / (1000 * 60 * 60);
 
     // One-off (single shift)
@@ -56,7 +73,8 @@ function generateShiftsForBackend(scale, rangeStart, rangeEnd) {
                 startTime: shiftStartDateTime,
                 endTime: shiftEndDateTime,
                 status: 'scheduled',
-                shiftTypeSnapshot: { name: scale.name || "Plantão" }
+                shiftTypeSnapshot: { name: scale.name || "Plantão" },
+                scaleCategory: scale.category
             });
         }
         return shifts;
@@ -90,7 +108,8 @@ function generateShiftsForBackend(scale, rangeStart, rangeEnd) {
                 startTime: shiftStartDateTime,
                 endTime: shiftEndDateTime,
                 status: 'scheduled',
-                shiftTypeSnapshot: { name: scale.name || "Plantão" }
+                shiftTypeSnapshot: { name: scale.name || "Plantão" },
+                scaleCategory: scale.category
             });
         }
         currentIterDate = addDays(currentIterDate, 1);

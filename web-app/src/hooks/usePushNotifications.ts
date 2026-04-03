@@ -52,7 +52,15 @@ export function usePushNotifications() {
 
                 const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
                 const tokens: string[] = userSnap.data()?.fcmTokens ?? [];
-                setIsRegistered(tokens.includes(token));
+                
+                if (!tokens.includes(token)) {
+                    // Auto-heal: If permission is granted but token isn't in Firestore, save it automatically
+                    await updateDoc(doc(db, 'users', currentUser.uid), {
+                        fcmTokens: arrayUnion(token)
+                    });
+                }
+                
+                setIsRegistered(true);
             } catch {
                 setIsRegistered(false);
             }

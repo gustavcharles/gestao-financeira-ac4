@@ -1,9 +1,8 @@
 const admin = require("firebase-admin");
-const serviceAccount = require("./service-account.json"); // Precisaremos que o usuário forneça isso ou usaremos o default se estiver no ambiente certo
 
 if (!admin.apps.length) {
+    // If running in same CLI environment that did 'firebase deploy', we shouldn't necessarily need a service account.
     admin.initializeApp({
-        credential: admin.credential.applicationDefault(), // Tenta usar o default do sistema
         projectId: 'controle-contas-ac4'
     });
 }

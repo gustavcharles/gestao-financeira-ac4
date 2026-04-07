@@ -335,12 +335,26 @@ exports.testNotification = onRequest(
 
         try {
             const response = await messaging.sendEachForMulticast(message);
+            
+            let errors = [];
+            if (response.failureCount > 0) {
+                response.responses.forEach((resp, idx) => {
+                    if (!resp.success) {
+                        const err = resp.error;
+                        errors.push(`Token [${idx}]: ${err.code} - ${err.message}`);
+                        console.error(`[testNotification] Falha no token ${idx}: ${err.code}`);
+                    }
+                });
+            }
+
             res.json({
                 success: true,
                 successCount: response.successCount,
                 failureCount: response.failureCount,
+                errors: errors
             });
         } catch (err) {
+            console.error('[testNotification] Erro geral:', err);
             res.status(500).json({ error: err.message });
         }
     }

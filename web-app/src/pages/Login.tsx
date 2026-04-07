@@ -3,17 +3,32 @@ import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, query, collection, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
-import { Shield, Lock, Mail, ArrowRight } from 'lucide-react';
+import { Shield, Lock, Mail, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 export const Login = () => {
     const [isRegister, setIsRegister] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPass, setConfirmPass] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPass, setShowConfirmPass] = useState(false);
     const [error, setError] = useState('');
     const [resetMessage, setResetMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+
+    const mapAuthError = (message: string) => {
+        if (message.includes('invalid-credential') || message.includes('wrong-password') || message.includes('user-not-found')) {
+            return 'E-mail ou senha incorretos. Verifique seus dados e tente novamente.';
+        }
+        if (message.includes('network-request-failed')) {
+            return 'Erro de conexão. Verifique sua internet.';
+        }
+        if (message.includes('too-many-requests')) {
+            return 'Muitas tentativas sem sucesso. Tente novamente mais tarde.';
+        }
+        return message.replace('Firebase: ', '');
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -86,7 +101,7 @@ export const Login = () => {
             }
             navigate('/');
         } catch (err: any) {
-            setError(err.message.replace('Firebase: ', ''));
+            setError(mapAuthError(err.message));
         } finally {
             setLoading(false);
         }
@@ -106,7 +121,7 @@ export const Login = () => {
             await sendPasswordResetEmail(auth, email);
             setResetMessage('E-mail de recuperação de senha enviado! Verifique sua caixa (e o spam).');
         } catch (err: any) {
-            setError(err.message.replace('Firebase: ', 'Erro ao enviar e-mail de recuperação: '));
+            setError(mapAuthError(err.message));
         } finally {
             setLoading(false);
         }
@@ -114,14 +129,14 @@ export const Login = () => {
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900 p-4 transition-colors duration-200">
-            <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl shadow-xl overflow-hidden">
+            <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-700">
                 <div className="p-8 text-center">
                     <div className="flex justify-between items-center mb-6">
                         <Shield className="text-primary-600" size={24} />
-                        <span className="text-xs font-bold text-slate-400 tracking-widest">SECURE ACCESS</span>
+                        <span className="text-xs font-bold text-slate-400 tracking-widest uppercase">Acesso Seguro</span>
                     </div>
 
-                    <div className="mx-auto w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center mb-4 text-primary-600">
+                    <div className="mx-auto w-16 h-16 bg-primary-50 dark:bg-primary-900/30 rounded-2xl flex items-center justify-center mb-4 text-primary-600 dark:text-primary-400 rotate-3 group hover:rotate-0 transition-transform duration-300">
                         <Shield size={32} />
                     </div>
 
@@ -132,52 +147,66 @@ export const Login = () => {
 
                     <form onSubmit={handleSubmit} className="space-y-4 text-left">
                         {error && (
-                            <div className="p-3 text-sm text-red-600 bg-red-50 rounded-xl">
+                            <div className="p-4 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-xl border border-red-100 dark:border-red-800/30 animate-shake">
                                 {error}
                             </div>
                         )}
                         {resetMessage && (
-                            <div className="p-3 text-sm text-emerald-600 bg-emerald-50 rounded-xl">
+                            <div className="p-4 text-sm text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400 rounded-xl border border-emerald-100 dark:border-emerald-800/30">
                                 {resetMessage}
                             </div>
                         )}
 
                         <div className="space-y-4">
                             <div className="relative">
-                                <Mail className="absolute left-3 top-3.5 text-slate-400" size={20} />
+                                <Mail className="absolute left-3.5 top-3.5 text-slate-400" size={20} />
                                 <input
                                     type="email"
                                     placeholder="Seu e-mail"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all dark:text-white"
+                                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all dark:text-white placeholder:text-slate-400"
                                     required
                                 />
                             </div>
 
                             <div className="relative">
-                                <Lock className="absolute left-3 top-3.5 text-slate-400" size={20} />
+                                <Lock className="absolute left-3.5 top-3.5 text-slate-400" size={20} />
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     placeholder="Sua senha"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all dark:text-white"
+                                    className="w-full pl-11 pr-12 py-3.5 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all dark:text-white placeholder:text-slate-400"
                                     required
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                                >
+                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
                             </div>
 
                             {isRegister && (
                                 <div className="relative">
-                                    <Lock className="absolute left-3 top-3.5 text-slate-400" size={20} />
+                                    <Lock className="absolute left-3.5 top-3.5 text-slate-400" size={20} />
                                     <input
-                                        type="password"
+                                        type={showConfirmPass ? "text" : "password"}
                                         placeholder="Confirme a senha"
                                         value={confirmPass}
                                         onChange={(e) => setConfirmPass(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all dark:text-white"
+                                        className="w-full pl-11 pr-12 py-3.5 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all dark:text-white placeholder:text-slate-400"
                                         required
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPass(!showConfirmPass)}
+                                        className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                                    >
+                                        {showConfirmPass ? <EyeOff size={20} /> : <Eye size={20} />}
+                                    </button>
                                 </div>
                             )}
 
@@ -186,7 +215,7 @@ export const Login = () => {
                                     <button
                                         type="button"
                                         onClick={handleForgotPassword}
-                                        className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 transition-colors"
+                                        className="text-sm font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors underline-offset-4 hover:underline"
                                     >
                                         Esqueceu a senha?
                                     </button>
@@ -197,20 +226,20 @@ export const Login = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3.5 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200 flex items-center justify-center gap-2 group"
+                            className="w-full py-4 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 active:scale-[0.98] transition-all shadow-lg shadow-primary-200 dark:shadow-none flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed mt-2"
                         >
                             {loading ? (
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
                             ) : (
                                 <>
-                                    {isRegister ? "Criar Conta" : "Entrar"}
+                                    {isRegister ? "Criar Conta Agora" : "Entrar no Sistema"}
                                     <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                                 </>
                             )}
                         </button>
                     </form>
 
-                    <div className="mt-8 pt-6 border-t border-slate-100">
+                    <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700">
                         <button
                             onClick={() => setIsRegister(!isRegister)}
                             className="text-sm text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 font-medium transition-colors"
@@ -220,12 +249,13 @@ export const Login = () => {
                     </div>
                 </div>
 
-                <div className="bg-slate-50 dark:bg-slate-900 p-4 text-center">
-                    <p className="text-xs text-slate-400 font-semibold tracking-widest uppercase">
-                        🛡️ Criptografia de Ponta a Ponta
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 text-center border-t border-slate-100 dark:border-slate-700">
+                    <p className="text-xs text-slate-400 font-bold tracking-widest uppercase flex items-center justify-center gap-2">
+                        <Shield size={12} /> Criptografia de Ponta a Ponta
                     </p>
                 </div>
             </div>
         </div>
     );
 };
+

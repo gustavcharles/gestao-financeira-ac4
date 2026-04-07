@@ -110,18 +110,30 @@ export const Dashboard = () => {
         let rec = 0;
         let desp = 0;
         let ac4Total = 0;
+        const recByCat = new Map<string, number>();
 
         filteredData.forEach(t => {
-            if (t.tipo === 'Receita') rec += Number(t.valor);
-            else if (t.tipo === 'Despesa') desp += Number(t.valor);
-
-            // AC-4 Total: Sum all AC-4 transactions in the filtered period
-            if (t.categoria === 'AC-4' && t.tipo === 'Receita') {
-                ac4Total += Number(t.valor);
+            const valor = Number(t.valor);
+            if (t.tipo === 'Receita') {
+                rec += valor;
+                // Group by category
+                recByCat.set(t.categoria, (recByCat.get(t.categoria) || 0) + valor);
+                
+                // AC-4 specific logic
+                if (t.categoria === 'AC-4') {
+                    ac4Total += valor;
+                }
+            } else if (t.tipo === 'Despesa') {
+                desp += valor;
             }
         });
 
-        return { rec, desp, saldo: rec - desp, ac4Total };
+        const recCategories = Array.from(recByCat.entries())
+            .map(([name, value]) => ({ name, value }))
+            .filter(cat => cat.value > 0)
+            .sort((a, b) => b.value - a.value);
+
+        return { rec, desp, saldo: rec - desp, ac4Total, recCategories };
     }, [filteredData]);
 
     // Advanced Insights
@@ -336,15 +348,29 @@ export const Dashboard = () => {
                             </div>
                         </div>
 
-                        <div className="flex flex-col gap-3 mt-4">
-                            <div className="flex items-center justify-between bg-white/10 px-4 py-3 rounded-xl backdrop-blur-sm transition-colors hover:bg-white/20">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                                        <ArrowUpRight size={16} />
+                        <div className="flex flex-col gap-2 mt-4">
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between bg-white/10 px-4 py-3 rounded-xl backdrop-blur-sm transition-colors hover:bg-white/20">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                                            <ArrowUpRight size={16} />
+                                        </div>
+                                        <div className="text-primary-100 font-medium text-sm">Receitas</div>
                                     </div>
-                                    <div className="text-primary-100 font-medium text-sm">Receitas</div>
+                                    <div className="text-emerald-400 font-bold">{formatCurrency(calculations.rec)}</div>
                                 </div>
-                                <div className="text-emerald-400 font-bold">{formatCurrency(calculations.rec)}</div>
+                                
+                                {/* Categorias de Receita (Decomposition) */}
+                                {calculations.recCategories.length > 0 && (
+                                    <div className="flex flex-col gap-1.5 px-4 pb-2 pt-1 border-l-2 border-emerald-500/20 ml-7 animate-in fade-in slide-in-from-top-1">
+                                        {calculations.recCategories.map((cat, idx) => (
+                                            <div key={idx} className="flex justify-between items-center text-[10px] md:text-[11px] text-primary-200/80 font-medium">
+                                                <span className="truncate pr-2">{cat.name}</span>
+                                                <span className="whitespace-nowrap font-semibold text-emerald-400/90">{formatCurrency(cat.value)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex items-center justify-between bg-white/10 px-4 py-3 rounded-xl backdrop-blur-sm transition-colors hover:bg-white/20">

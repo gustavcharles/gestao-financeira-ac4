@@ -73,6 +73,7 @@ exports.sendShiftReminders = onSchedule(
         targetShifts.forEach((shift) => {
             if (!shiftsByUser[shift.userId]) shiftsByUser[shift.userId] = [];
             
+            console.log(`[sendShiftReminders] Processando plantão ${shift.id} para usuário ${shift.userId}`);
             // Deduplicação pelo conteúdo (mesmo usuário, horário e nome do plantão)
             const startTimeStr = shift.startTime.toDate ? shift.startTime.toDate().getTime() : new Date(shift.startTime).getTime();
             const shiftName = shift.shiftTypeSnapshot?.name ?? "Plantão";
@@ -139,6 +140,8 @@ exports.sendShiftReminders = onSchedule(
                     const title = `🔔 Plantão hoje — ${timeStr}`;
                     const body = `${shiftName}${category ? ` (${category})` : ""} · ${dateStr}`;
 
+                    console.log(`[sendShiftReminders] Enviando push para ${userId} (${uniqueTokens.length} tokens). Shift: ${shift.id}`);
+
                     const message = {
                         notification: { title, body },
                         data: {
@@ -162,7 +165,7 @@ exports.sendShiftReminders = onSchedule(
                         },
                         webpush: {
                             headers: {
-                               'Topic': reminderKey 
+                                'Topic': reminderKey 
                             },
                             notification: {
                                 icon: "/pwa-192x192.png",
@@ -174,8 +177,16 @@ exports.sendShiftReminders = onSchedule(
 
                     try {
                         const response = await messaging.sendEachForMulticast(message);
-                        console.log(`[sendShiftReminders] FCM ok para ${userId} (shift ${shift.id}). Sucesso: ${response.successCount}, Falha: ${response.failureCount}`);
+                        console.log(`[sendShiftReminders] Resposta FCM para ${userId}: Sucesso=${response.successCount}, Falha=${response.failureCount}`);
                         
+                        if (response.failureCount > 0) {
+                            response.responses.forEach((resp, idx) => {
+                                if (!resp.success) {
+                                    console.error(`[sendShiftReminders] Falha no token ${uniqueTokens[idx].substring(0, 10)}...: ${resp.error?.code} - ${resp.error?.message}`);
+                                }
+                            });
+                        }
+
                         // Token Cleanup: Remove tokens que não são mais válidos
                         if (response.failureCount > 0) {
                             const tokensToRemove = [];

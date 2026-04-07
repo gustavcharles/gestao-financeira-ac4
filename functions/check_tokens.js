@@ -1,47 +1,49 @@
 const admin = require("firebase-admin");
-const { addHours } = require("date-fns");
+const serviceAccount = require("./service-account.json"); // Precisaremos que o usuário forneça isso ou usaremos o default se estiver no ambiente certo
 
 if (!admin.apps.length) {
-    admin.initializeApp();
-}
-
-async function checkShifts() {
-    const db = admin.firestore();
-
-    // Test timezone and shifting
-    const now = new Date();
-    const windowStart = addHours(now, 24);
-    const windowEnd = addHours(now, 48);
-
-    console.log(`Checking shifts between ${windowStart.toISOString()} and ${windowEnd.toISOString()}`);
-
-    const shiftsSnap = await db
-        .collection("shifts")
-        .where("startTime", ">=", admin.firestore.Timestamp.fromDate(windowStart))
-        .where("startTime", "<=", admin.firestore.Timestamp.fromDate(windowEnd))
-        .where("status", "in", ["scheduled", "confirmed"])
-        .get();
-
-    console.log(`Found ${shiftsSnap.docs.length} shifts matching criteria.`);
-
-    // Group exactly as the script does
-    const shiftsByUser = {};
-    shiftsSnap.docs.forEach((doc) => {
-        const shift = { id: doc.id, ...doc.data() };
-        if (!shiftsByUser[shift.userId]) shiftsByUser[shift.userId] = [];
-        shiftsByUser[shift.userId].push(shift);
+    admin.initializeApp({
+        credential: admin.credential.applicationDefault(), // Tenta usar o default do sistema
+        projectId: 'controle-contas-ac4'
     });
-
-    console.log(`Shifts grouped by ${Object.keys(shiftsByUser).length} users.`);
-
-    // For each user with a shift, do they have tokens?
-    for (const userId of Object.keys(shiftsByUser)) {
-        const userDoc = await db.collection("users").doc(userId).get();
-        const fcmTokens = userDoc.data()?.fcmTokens || [];
-        console.log(`- User: ${userDoc.data()?.email} (${userId}) | Shifts: ${shiftsByUser[userId].length} | FCM Tokens: ${fcmTokens.length}`);
-    }
-
-    return "Done";
 }
 
-checkShifts().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+const db = admin.firestore();
+
+async function checkUser(userId) {
+    console.log(`--- Verificando usuário: ${userId} ---`);
+    try {
+        const userDoc = await db.collection("users").doc(userId).get();
+        if (!userDoc.exists) {
+            console.log("ERRO: Usuário não encontrado no Firestore.");
+            return;
+        }
+
+        const data = userDoc.data();
+        console.log("Email:", data.email);
+        console.log("Display Name:", data.displayName);
+        console.log("Phone:", data.phone);
+        
+        const fcmTokens = data.fcmTokens || [];
+        console.log(`Tokens FCM encontrados: ${fcmTokens.length}`);
+        
+        fcmTokens.forEach((token, i) => {
+            console.log(`Token [${i}]: ${token.substring(0, 20)}...`);
+        });
+
+        if (fcmTokens.length === 0) {
+            console.log("ALERTA: O usuário não tem tokens registrados. As notificações não chegarão.");
+        }
+
+    } catch (err) {
+        console.error("Erro ao buscar dados:", err.message);
+    }
+}
+
+// Pega o ID da linha de comando
+const targetId = process.argv[2];
+if (!targetId) {
+    console.log("Uso: node check_tokens.js <userId>");
+} else {
+    checkUser(targetId);
+}

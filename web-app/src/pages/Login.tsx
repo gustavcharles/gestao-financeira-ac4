@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, query, collection, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { Shield, Lock, Mail, ArrowRight } from 'lucide-react';
@@ -11,12 +11,14 @@ export const Login = () => {
     const [password, setPassword] = useState('');
     const [confirmPass, setConfirmPass] = useState('');
     const [error, setError] = useState('');
+    const [resetMessage, setResetMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setResetMessage('');
         setLoading(true);
 
         try {
@@ -90,6 +92,26 @@ export const Login = () => {
         }
     };
 
+    const handleForgotPassword = async () => {
+        setError('');
+        setResetMessage('');
+        
+        if (!email) {
+            setError('Por favor, informe seu e-mail no campo acima para recuperar a senha.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await sendPasswordResetEmail(auth, email);
+            setResetMessage('E-mail de recuperação de senha enviado! Verifique sua caixa (e o spam).');
+        } catch (err: any) {
+            setError(err.message.replace('Firebase: ', 'Erro ao enviar e-mail de recuperação: '));
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900 p-4 transition-colors duration-200">
             <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl shadow-xl overflow-hidden">
@@ -112,6 +134,11 @@ export const Login = () => {
                         {error && (
                             <div className="p-3 text-sm text-red-600 bg-red-50 rounded-xl">
                                 {error}
+                            </div>
+                        )}
+                        {resetMessage && (
+                            <div className="p-3 text-sm text-emerald-600 bg-emerald-50 rounded-xl">
+                                {resetMessage}
                             </div>
                         )}
 
@@ -151,6 +178,18 @@ export const Login = () => {
                                         className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all dark:text-white"
                                         required
                                     />
+                                </div>
+                            )}
+
+                            {!isRegister && (
+                                <div className="flex justify-end pt-1">
+                                    <button
+                                        type="button"
+                                        onClick={handleForgotPassword}
+                                        className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 transition-colors"
+                                    >
+                                        Esqueceu a senha?
+                                    </button>
                                 </div>
                             )}
                         </div>

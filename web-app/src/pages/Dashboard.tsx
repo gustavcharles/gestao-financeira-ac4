@@ -506,7 +506,7 @@ export const Dashboard = () => {
                                         return <Cell key={`cell-${index}`} fill={color || COLORS[index % COLORS.length]} />;
                                     })}
                                 </Pie>
-                                <Tooltip formatter={(val: number | undefined) => formatCurrency(val || 0)} />
+                                <Tooltip formatter={(val: any) => formatCurrency(val || 0)} />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>

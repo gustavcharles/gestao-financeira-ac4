@@ -336,7 +336,7 @@ export const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
 
                 {/* Main Feature Card: Saldo (Now 1 col) */}
-                <div className="relative overflow-hidden bg-gradient-to-br from-primary-600 to-slate-900 rounded-3xl p-6 text-white shadow-xl shadow-primary-900/10 flex flex-col h-full">
+                <div className="relative overflow-visible bg-gradient-to-br from-primary-600 to-slate-900 rounded-3xl p-6 text-white shadow-xl shadow-primary-900/10 flex flex-col h-full">
                     <div className="relative z-10 flex flex-col h-full justify-between">
                         <div>
                             <div className="text-primary-100 font-medium mb-1 flex items-center gap-2">
@@ -364,7 +364,7 @@ export const Dashboard = () => {
                                 {calculations.recCategories.length > 0 && (
                                     <div className="flex flex-col gap-1.5 px-4 pb-2 pt-1 border-l-2 border-emerald-500/20 ml-7 animate-in fade-in slide-in-from-top-1">
                                         {calculations.recCategories.map((cat, idx) => (
-                                            <div key={idx} className="flex justify-between items-center text-[10px] md:text-[11px] text-primary-200/80 font-medium">
+                                            <div key={idx} className="flex justify-between items-center text-xs md:text-[11px] text-white/90 font-medium">
                                                 <span className="truncate pr-2">{cat.name}</span>
                                                 <span className="whitespace-nowrap font-semibold text-emerald-400/90">{formatCurrency(cat.value)}</span>
                                             </div>

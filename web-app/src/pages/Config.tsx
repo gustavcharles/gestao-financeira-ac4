@@ -4,7 +4,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { Trash2, Plus, GripVertical, CheckCircle2, X, Bell, BellOff, BellRing, Loader2, MessageCircle, Phone, Save } from 'lucide-react';
+import { Trash2, Plus, GripVertical, CheckCircle2, X, Bell, BellOff, BellRing, Loader2, MessageCircle, Phone, Save, RotateCw, ShieldCheck } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { ReportGenerator } from '../components/reports/ReportGenerator';
 import { CategoryIconPicker } from '../components/ui/CategoryIconPicker';
@@ -346,6 +346,57 @@ export const Config = () => {
                 </div>
                 <div className="p-6">
                     <ReportGenerator />
+                </div>
+            </div>
+
+            {/* System Section */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+                    <h3 className="font-bold text-lg text-slate-800 dark:text-white mb-1">Sistema e Cache</h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Ferramentas de manutenção do aplicativo</p>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-xl">
+                        <div className="flex items-start gap-3">
+                            <div className="p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-lg shrink-0">
+                                <RotateCw size={20} />
+                            </div>
+                            <div>
+                                <h4 className="font-medium text-amber-900 dark:text-amber-400 text-sm">Forçar Atualização</h4>
+                                <p className="text-xs text-amber-700 dark:text-amber-500 mt-0.5">
+                                    Limpa o cache local e força o carregamento da versão mais recente do servidor. Use se o app estiver travado ou desatualizado.
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={async () => {
+                                if (window.confirm("Isso irá limpar o cache local e recarregar o app. Deseja continuar?")) {
+                                    // 1. Clear caches
+                                    if ('caches' in window) {
+                                        const cacheNames = await caches.keys();
+                                        await Promise.all(cacheNames.map(name => caches.delete(name)));
+                                    }
+                                    // 2. Unregister SW
+                                    if ('serviceWorker' in navigator) {
+                                        const registrations = await navigator.serviceWorker.getRegistrations();
+                                        await Promise.all(registrations.map(r => r.unregister()));
+                                    }
+                                    // 3. Store update attempt timestamp
+                                    sessionStorage.setItem('pwa-last-update-attempt', Date.now().toString());
+                                    // 4. Reload
+                                    window.location.reload();
+                                }
+                            }}
+                            className="whitespace-nowrap bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                        >
+                            Limpar e Reiniciar
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 px-1 text-xs text-slate-400">
+                        <ShieldCheck size={14} />
+                        <span>Versão do Cliente: v1.2.3 (Stable)</span>
+                    </div>
                 </div>
             </div>
 

@@ -1,7 +1,9 @@
+const admin = require("firebase-admin");
+admin.initializeApp();
+
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onRequest } = require("firebase-functions/v2/https");
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
-const admin = require("firebase-admin");
 const { format, addHours, startOfDay } = require("date-fns");
 const { toZonedTime } = require("date-fns-tz");
 const cors = require("cors")({ origin: true });
@@ -9,7 +11,6 @@ const { generateShiftsForBackend } = require("./utils/generator");
 const { whatsappAgentWebhook } = require("./src/whatsappAgent");
 exports.whatsappAgentWebhook = whatsappAgentWebhook;
 
-admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 

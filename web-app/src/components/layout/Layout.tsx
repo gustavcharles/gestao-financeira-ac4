@@ -205,7 +205,7 @@ export const Layout = () => {
                             <span>Sair</span>
                         </button>
                         <div className="mt-4 px-4 text-xs text-slate-400 text-center">
-                            v1.2.2 (PWA & Push)
+                            v1.2.3 (PWA & Push)
                         </div>
                     </div>
                 </div>

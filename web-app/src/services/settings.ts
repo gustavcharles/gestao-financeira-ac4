@@ -24,17 +24,23 @@ export const DEFAULT_SETTINGS: UserSettings = {
         Receita: [
             { name: "Salário", icon: "briefcase", color: "#10B981" },
             { name: "AC-4", icon: "shield", color: "#3B82F6" },
-            { name: "Renda Extra", icon: "trending-up", color: "#F59E0B" },
+            { name: "Investimentos", icon: "trending-up", color: "#8B5CF6" },
+            { name: "Renda Extra", icon: "dollar-sign", color: "#F59E0B" },
             { name: "Outros", icon: "more-horizontal", color: "#64748B" }
         ],
         Despesa: [
             { name: "Aluguel", icon: "home", color: "#3B82F6" },
             { name: "Energia", icon: "zap", color: "#F59E0B" },
-            { name: "Consórcio", icon: "car", color: "#64748B" },
-            { name: "IPASGO", icon: "heart", color: "#EF4444" },
-            { name: "Saneago", icon: "droplet", color: "#06B6D4" },
             { name: "Internet", icon: "wifi", color: "#06B6D4" },
+            { name: "Mercado", icon: "shopping-cart", color: "#F97316" },
+            { name: "Combustível", icon: "car", color: "#64748B" },
+            { name: "Alimentação", icon: "utensils", color: "#EF4444" },
+            { name: "Farmácia", icon: "heart", color: "#EF4444" },
+            { name: "Lazer", icon: "gamepad-2", color: "#8B5CF6" },
+            { name: "Transporte", icon: "map-pin", color: "#6366F1" },
             { name: "Cartão", icon: "credit-card", color: "#8B5CF6" },
+            { name: "Educação", icon: "graduation-cap", color: "#6366F1" },
+            { name: "Assinaturas", icon: "video", color: "#EC4899" },
             { name: "Outros", icon: "more-horizontal", color: "#64748B" }
         ]
     },

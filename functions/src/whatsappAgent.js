@@ -19,6 +19,9 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 // Cache de conexão Firestore (evita lentidão em cold starts)
 let _db = null;
 function getDb() {
+    if (admin.apps.length === 0) {
+        admin.initializeApp();
+    }
     if (!_db) _db = admin.firestore();
     return _db;
 }
@@ -68,15 +71,25 @@ async function findUserByPhone(rawPhone) {
     candidates.add("55" + insertBrazilianNinthDigit(withoutCountry));
 
     console.log(`[Agent] Buscando usuário. Variações: ${[...candidates].join(", ")}`);
+    
+    // Timeout de 10s para evitar que a função trave infinitamente
+    const timeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Firestore Timeout")), 10000)
+    );
 
     for (const phone of candidates) {
-        const snap = await db.collection("users")
-            .where("phone", "==", phone)
-            .limit(1)
-            .get();
-        if (!snap.empty) {
-            console.log(`[Agent] Usuário encontrado com o número: ${phone}`);
-            return { id: snap.docs[0].id, ...snap.docs[0].data() };
+        try {
+            const snap = await Promise.race([
+                db.collection("users").where("phone", "==", phone).limit(1).get(),
+                timeout
+            ]);
+            
+            if (!snap.empty) {
+                console.log(`[Agent] Usuário encontrado com o número: ${phone}`);
+                return { id: snap.docs[0].id, ...snap.docs[0].data() };
+            }
+        } catch (err) {
+            console.error(`[Agent] Erro ou Timeout ao buscar ${phone}:`, err);
         }
     }
 
@@ -283,8 +296,7 @@ exports.whatsappAgentWebhook = onRequest(
         memory: "256MiB",
     },
     async (req, res) => {
-        // Responde 200 imediatamente para a Evolution API não retentar
-        res.status(200).send("OK");
+        // Agora o res.send(200) fica no final para garantir que o processo termine
 
         try {
             const body = req.body;
@@ -334,12 +346,13 @@ exports.whatsappAgentWebhook = onRequest(
 
             const defaultCategories = {
                 Receita: [
-                    { name: "Salário" }, { name: "AC-4" }, { name: "Renda Extra" }, { name: "Outros" }
+                    { name: "Salário" }, { name: "AC-4" }, { name: "Renda Extra" }, { name: "Investimentos" }, { name: "Outros" }
                 ],
                 Despesa: [
-                    { name: "Aluguel" }, { name: "Energia" }, { name: "Consórcio" },
-                    { name: "IPASGO" }, { name: "Saneago" }, { name: "Internet" },
-                    { name: "Cartão" }, { name: "Outros" }
+                    { name: "Aluguel" }, { name: "Energia" }, { name: "Internet" }, { name: "Mercado" }, 
+                    { name: "Combustível" }, { name: "Alimentação" }, { name: "Farmácia" }, 
+                    { name: "Lazer" }, { name: "Transporte" }, { name: "Cartão" }, 
+                    { name: "Educação" }, { name: "Assinaturas" }, { name: "Outros" }
                 ],
             };
 
@@ -498,6 +511,11 @@ exports.whatsappAgentWebhook = onRequest(
 
         } catch (err) {
             console.error("[Agent] Erro geral:", err);
+        } finally {
+            // Garante que a Evolution API receba o OK mesmo se houver erro interno posterior
+            if (!res.headersSent) {
+                res.status(200).send("OK");
+            }
         }
     }
 );

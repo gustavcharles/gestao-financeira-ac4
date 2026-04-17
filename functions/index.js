@@ -6,6 +6,8 @@ const { format, addHours, startOfDay } = require("date-fns");
 const { toZonedTime } = require("date-fns-tz");
 const cors = require("cors")({ origin: true });
 const { generateShiftsForBackend } = require("./utils/generator");
+const { whatsappAgentWebhook } = require("./src/whatsappAgent");
+exports.whatsappAgentWebhook = whatsappAgentWebhook;
 
 admin.initializeApp();
 const db = admin.firestore();

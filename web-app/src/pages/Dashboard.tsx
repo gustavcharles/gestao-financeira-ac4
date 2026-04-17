@@ -364,7 +364,7 @@ export const Dashboard = () => {
                                 {calculations.recCategories.length > 0 && (
                                     <div className="flex flex-col gap-1.5 px-4 pb-2 pt-1 border-l-2 border-emerald-500/20 ml-7 animate-in fade-in slide-in-from-top-1">
                                         {calculations.recCategories.map((cat, idx) => (
-                                            <div key={idx} className="flex justify-between items-center text-xs md:text-[11px] text-white/90 font-medium">
+                                            <div key={idx} className="flex justify-between items-center text-xs text-white/90 font-medium">
                                                 <span className="truncate pr-2">{cat.name}</span>
                                                 <span className="whitespace-nowrap font-semibold text-emerald-400/90">{formatCurrency(cat.value)}</span>
                                             </div>
@@ -426,13 +426,13 @@ export const Dashboard = () => {
                                             <div className="text-xs text-slate-500 dark:text-slate-400 capitalize mb-2 font-medium">
                                                 {format(parseISO(shift.date), 'EEEE', { locale: ptBR })}
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700">
-                                                    <Clock size={10} />
+                                            <div className="flex items-center gap-1.5 flex-nowrap">
+                                                <div className="flex items-center gap-1 whitespace-nowrap text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+                                                    <Clock size={9} />
                                                     {shift.shiftTypeSnapshot.startTime} - {shift.shiftTypeSnapshot.endTime}
                                                 </div>
                                                 {shift.scaleCategory && (
-                                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${shift.scaleCategory === 'AC-4'
+                                                    <span className={`whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-full border ${shift.scaleCategory === 'AC-4'
                                                         ? 'text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-900/30 border-violet-200 dark:border-violet-800/30'
                                                         : shift.scaleCategory === 'Diário'
                                                             ? 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800/30'

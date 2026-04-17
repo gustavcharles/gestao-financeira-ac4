@@ -7,13 +7,12 @@ const OPENROUTER_API_KEY = defineSecret("OPENROUTER_API_KEY");
 
 // Configuração do OpenRouter — modelos em ordem de prioridade (fallback automático)
 const OPENROUTER_MODELS = [
-    "meta-llama/llama-3.3-70b-instruct:free",       // 1º: Llama 3.3 70B — muito capaz
-    "qwen/qwen3-next-80b-a3b-instruct:free",         // 2º: Qwen3 80B — alto desempenho
-    "google/gemma-4-31b-it:free",                    // 3º: Gemma 4 31B — multimodal
-    "google/gemma-4-26b-a4b-it:free",               // 4º: Gemma 4 26B — variante compacta
-    "openai/gpt-oss-20b:free",                       // 5º: GPT OSS 20B
-    "minimax/minimax-m2.5:free",                     // 6º: MiniMax M2.5
-    "mistralai/mistral-7b-instruct:free",            // 7º: Mistral 7B — rápido e confiável
+    "google/gemini-2.0-flash-001",                   // 1º: Gemini 2.0 Flash — Estabilidade e baixo custo
+    "google/gemini-2.0-flash-lite-preview-02-05:free", // 2º: Flash Lite (Gratuito se disponível)
+    "liquid/lfm-2.5-1.2b-instruct:free",             // 3º: Liquid LFM (Backup estável)
+    "meta-llama/llama-3.3-70b-instruct:free",       // 4º: Llama 3.3 70B
+    "qwen/qwen3-next-80b-a3b-instruct:free",         // 5º: Qwen3 80B
+    "google/gemma-3-27b-it:free",                    // 6º: Gemma 3
 ];
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -236,9 +235,12 @@ async function callOpenRouter(apiKey, messages) {
 
             if (response.status === 429) {
                 const errText = await response.text();
-                console.warn(`[Agent] Modelo ${model} com rate limit. Tentando próximo...`);
+                console.warn(`[Agent] Modelo ${model} com rate limit. Aguardando 2s antes do fallback...`);
                 lastError = new Error(`OpenRouter 429 em ${model}: ${errText}`);
-                continue; // tenta o próximo modelo
+                
+                // Pequeno delay antes de tentar o próximo modelo para evitar bloqueio sequencial
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                continue; 
             }
 
             if (!response.ok) {

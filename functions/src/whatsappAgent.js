@@ -123,20 +123,21 @@ function getShiftedReferenceMonth(dateStr, categoria, tipo) {
 /**
  * Faz o download de mídia (áudio/imagem) via Evolution API
  */
-async function downloadMedia(config, messageData) {
+async function downloadMedia(config, fullMessageBody) {
     let baseUrl = config.baseUrl.trim();
     if (!baseUrl.includes("://")) baseUrl = "https://" + baseUrl;
 
     const url = `${baseUrl}/chat/getBase64FromMediaMessage/${encodeURIComponent(config.instanceName)}`;
 
     try {
+        console.log(`[Agent] Baixando mídia...`);
         const response = await fetch(url, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "apikey": config.apiKey,
             },
-            body: JSON.stringify({ message: messageData, convertToMp4: false }),
+            body: JSON.stringify({ message: fullMessageBody, convertToMp4: false }),
         });
 
         if (!response.ok) {
@@ -356,11 +357,28 @@ exports.whatsappAgentWebhook = onRequest(
                 ],
             };
 
-            const categories = settingsDoc.exists
+            const baseCategories = settingsDoc.exists
                 ? (settingsDoc.data().categories || defaultCategories)
                 : defaultCategories;
 
-            const systemPrompt = buildSystemPrompt(categories);
+            // Smart Merge: Ensure backend agent sees both user-defined and new default categories
+            const mergedCategories = {
+                Receita: Array.isArray(baseCategories.Receita) ? [...baseCategories.Receita] : [...defaultCategories.Receita],
+                Despesa: Array.isArray(baseCategories.Despesa) ? [...baseCategories.Despesa] : [...defaultCategories.Despesa]
+            };
+
+            ['Receita', 'Despesa'].forEach(type => {
+                defaultCategories[type].forEach(defCat => {
+                    const exists = mergedCategories[type].some(
+                        c => (c.name || c).toLowerCase() === defCat.name.toLowerCase()
+                    );
+                    if (!exists) {
+                        mergedCategories[type].push(defCat);
+                    }
+                });
+            });
+
+            const systemPrompt = buildSystemPrompt(mergedCategories);
             let messages = [];
 
             // ── Monta o conteúdo para o OpenRouter ──
@@ -376,22 +394,45 @@ exports.whatsappAgentWebhook = onRequest(
                 messages = [{ role: "user", content: systemPrompt + "\n\nMensagem do usuário:\n" + text }];
 
             } else if (messageType === "audioMessage") {
-                // Gemma 4 via OpenRouter não processa áudio diretamente
-                // Pedimos ao usuário para descrever em texto
-                await sendWhatsAppReply(phoneNumber,
-                    "🎤 Recebi seu áudio!\n\n" +
-                    "Por enquanto, o assistente processa apenas *mensagens de texto* ou *fotos*.\n\n" +
-                    "Me diga por texto o que deseja lançar. Exemplo:\n" +
-                    '_"paguei 80 reais no mercado hoje"_ 📝'
-                );
-                return;
+                const config = await getWhatsAppConfig();
+                if (!config) { return; }
+
+                console.log(`[Agent] Processando áudio para ${phoneNumber}...`);
+                const media = await downloadMedia(config, data);
+
+                if (!media || !media.base64) {
+                    await sendWhatsAppReply(phoneNumber,
+                        "❌ Não consegui processar seu áudio. Tente enviar novamente ou use *texto*.");
+                    return;
+                }
+
+                const mimeType = media.mimetype || "audio/ogg";
+                const format = mimeType.includes("ogg") ? "ogg" : "mp3";
+
+                messages = [{
+                    role: "user",
+                    content: [
+                        {
+                            type: "text",
+                            text: systemPrompt +
+                                "\n\nO usuário enviou um áudio. Transcreva o que ele disse e extraia os dados financeiros para o JSON de lançamento."
+                        },
+                        {
+                            type: "input_audio",
+                            input_audio: {
+                                data: media.base64,
+                                format: format
+                            }
+                        }
+                    ]
+                }];
 
             } else if (messageType === "imageMessage") {
                 const config = await getWhatsAppConfig();
                 if (!config) { return; }
 
                 const caption = data.message?.imageMessage?.caption || "";
-                const media = await downloadMedia(config, data.message);
+                const media = await downloadMedia(config, data);
 
                 if (!media || !media.base64) {
                     await sendWhatsAppReply(phoneNumber,

@@ -59,44 +59,56 @@ export const subscribeSettings = (userId: string, callback: (settings: UserSetti
         if (docSnap.exists()) {
             const data = docSnap.data();
 
-            // Auto-Migration Check
-            let needsMigration = false;
-            const migratedCategories: any = { ...data.categories };
+            // Smart Merge Categories
+            const baseCategories = data.categories || DEFAULT_SETTINGS.categories;
+            const mergedCategories: { Receita: CategoryItem[], Despesa: CategoryItem[] } = {
+                Receita: Array.isArray(baseCategories.Receita) ? [...baseCategories.Receita] : [...DEFAULT_SETTINGS.categories.Receita],
+                Despesa: Array.isArray(baseCategories.Despesa) ? [...baseCategories.Despesa] : [...DEFAULT_SETTINGS.categories.Despesa]
+            };
 
-            // Check if categories are strings (old format) and convert
-            if (migratedCategories && (
-                (migratedCategories.Receita && typeof migratedCategories.Receita[0] === 'string') ||
-                (migratedCategories.Despesa && typeof migratedCategories.Despesa[0] === 'string')
-            )) {
-
-                ['Receita', 'Despesa'].forEach(type => {
-                    if (Array.isArray(migratedCategories[type]) && typeof migratedCategories[type][0] === 'string') {
-                        migratedCategories[type] = (migratedCategories[type] as string[]).map(catName => {
-                            const style = guessCategoryStyle(catName);
-                            return {
-                                name: catName,
-                                icon: style.icon,
-                                color: style.color
-                            };
-                        });
+            let wasMerged = false;
+            ['Receita', 'Despesa'].forEach(type => {
+                const t = type as 'Receita' | 'Despesa';
+                DEFAULT_SETTINGS.categories[t].forEach(defCat => {
+                    const exists = mergedCategories[t].some(
+                        (c: any) => (typeof c === 'string' ? c : c.name).toLowerCase() === defCat.name.toLowerCase()
+                    );
+                    if (!exists) {
+                        mergedCategories[t].push(defCat);
+                        wasMerged = true;
                     }
                 });
+            });
 
-                needsMigration = true;
-            }
+            // Auto-Migration Check for old string format
+            let needsMigration = wasMerged;
+            
+            ['Receita', 'Despesa'].forEach(type => {
+                const t = type as 'Receita' | 'Despesa';
+                if (mergedCategories[t].some(c => typeof c === 'string')) {
+                    mergedCategories[t] = (mergedCategories[t] as any[]).map(c => {
+                        if (typeof c === 'string') {
+                            const style = guessCategoryStyle(c);
+                            return { name: c, icon: style.icon, color: style.color };
+                        }
+                        return c;
+                    });
+                    needsMigration = true;
+                }
+            });
 
             const currentSettings: UserSettings = {
                 ...DEFAULT_SETTINGS,
                 ...data,
-                categories: needsMigration ? migratedCategories : (data.categories || DEFAULT_SETTINGS.categories)
+                categories: mergedCategories
             };
 
             callback(currentSettings);
 
-            // Persist migration if needed
+            // Persist migration/merge if needed
             if (needsMigration) {
-                await setDoc(docRef, { categories: migratedCategories }, { merge: true });
-                console.log("Auto-migrated categories to new format");
+                await setDoc(docRef, { categories: mergedCategories }, { merge: true });
+                console.log("Auto-merged/migrated categories to latest version");
             }
 
         } else {

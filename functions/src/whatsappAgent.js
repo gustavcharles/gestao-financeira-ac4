@@ -218,7 +218,12 @@ ou
 {"tipo":"Receita","descricao":"string","valor":number,"categoria":"string","data":"YYYY-MM-DD","status":"Pendente"}
 
 Se a mensagem NÃO for sobre finanças ou estiver incompleta demais para extrair valor:
-{"erro":"motivo resumido em até 10 palavras"}`;
+{"erro":"motivo resumido em até 10 palavras"}
+
+NOVA FUNÇÃO: CONSULTA DE RESUMO/SALDO
+Se o usuário pedir um resumo, relatório, extrato, saldo ou perguntar quanto gastou (ex: "quanto gastei esse mês?", "resumo de Abril", "meu saldo"), retorne:
+{"comando": "resumo", "mes_referencia": "Mês Ano" (Ex: Abril 2026)}
+IMPORTANTE: Se o mês não for especificado, use o mês atual: ${new Date().toLocaleString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^\w/, (c) => c.toUpperCase())}.`;
 }
 
 /**
@@ -284,6 +289,76 @@ async function callOpenRouter(apiKey, messages) {
     throw lastError || new Error("Todos os modelos OpenRouter estão indisponíveis.");
 }
 
+
+/**
+ * Gera um resumo mensal baseado nos dados do Firestore e envia via WhatsApp
+ */
+async function handleSummaryRequest(userId, mesReferencia, phoneNumber, apiKey) {
+    const db = getDb();
+    console.log(`[Agent] Gerando resumo de ${mesReferencia} para ${userId}...`);
+
+    try {
+        const snap = await db.collection("transacoes")
+            .where("user_id", "==", userId)
+            .where("mes_referencia", "==", mesReferencia)
+            .get();
+
+        if (snap.empty) {
+            await sendWhatsAppReply(phoneNumber, `📭 Não encontrei nenhum lançamento para *${mesReferencia}* ainda.`);
+            return;
+        }
+
+        let totalReceita = 0;
+        let totalDespesa = 0;
+        const categorias = {};
+
+        snap.forEach(doc => {
+            const t = doc.data();
+            const valor = Number(t.valor) || 0;
+            if (t.tipo === "Receita") {
+                totalReceita += valor;
+            } else {
+                totalDespesa += valor;
+                const cat = t.categoria || "Outros";
+                categorias[cat] = (categorias[cat] || 0) + valor;
+            }
+        });
+
+        const saldo = totalReceita - totalDespesa;
+
+        // Monta o resumo consolidado para a IA formatar
+        let resumoBruto = `RESUMO DO MÊS: ${mesReferencia}\n`;
+        resumoBruto += `Receitas: R$ ${totalReceita.toFixed(2)}\n`;
+        resumoBruto += `Despesas: R$ ${totalDespesa.toFixed(2)}\n`;
+        resumoBruto += `Saldo: R$ ${saldo.toFixed(2)}\n\n`;
+        resumoBruto += `DESPESAS POR CATEGORIA:\n`;
+        
+        Object.entries(categorias)
+            .sort((a, b) => b[1] - a[1]) // Ordena por maior gasto
+            .forEach(([cat, val]) => {
+                resumoBruto += `- ${cat}: R$ ${val.toFixed(2)}\n`;
+            });
+
+        // Chama a IA para dar o "tom" amigável e formatar bonitinho
+        const reportPrompt = [
+            {
+                role: "system",
+                content: "Você é um consultor financeiro pessoal. Receba os dados consolidados do mês e crie um boletim informativo amigável, motivador e organizado para o WhatsApp. Use emojis, negrito e organize em seções. Se o saldo for positivo, parabenize. Se for negativo, dê uma dica curta de economia."
+            },
+            {
+                role: "user",
+                content: `Aqui estão meus números de ${mesReferencia}:\n\n${resumoBruto}`
+            }
+        ];
+
+        const narrativa = await callOpenRouter(apiKey, reportPrompt);
+        await sendWhatsAppReply(phoneNumber, narrativa);
+
+    } catch (err) {
+        console.error("[Agent] Erro ao gerar resumo:", err);
+        await sendWhatsAppReply(phoneNumber, "❌ Desculpe, tive um problema ao buscar seus dados agora.");
+    }
+}
 
 // ─────────────────────────────────────────────
 // CLOUD FUNCTION PRINCIPAL — WEBHOOK
@@ -474,6 +549,12 @@ exports.whatsappAgentWebhook = onRequest(
                     .replace(/```\n?/g, "")
                     .trim();
                 parsed = JSON.parse(cleaned);
+
+                // ── Roteamento de Comandos ──
+                if (parsed.comando === "resumo") {
+                    await handleSummaryRequest(user.id, parsed.mes_referencia || "Abril 2026", phoneNumber, OPENROUTER_API_KEY.value());
+                    return;
+                }
             } catch (parseErr) {
                 console.error("[Agent] Falha ao parsear JSON. Raw:", rawText);
                 await sendWhatsAppReply(phoneNumber,

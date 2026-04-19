@@ -1,0 +1,9 @@
+{
+  "event": "PAYMENT_CONFIRMED",
+  "payment": {
+    "id": "pay_simulacao_basic",
+    "customerEmail": "guganauta@gmail.com",
+    "value": 9.90,
+    "status": "CONFIRMED"
+  }
+}

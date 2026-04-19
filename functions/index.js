@@ -215,7 +215,8 @@ exports.sendShiftReminders = onSchedule(
                 }
 
                 // WhatsApp Reminder
-                if (phone) {
+                const plan = userData.plan || 'trial';
+                if (phone && plan !== 'basic') {
                     const waMessage = `Olá, ${userName}!\n\n` +
                         `Atenção para o seu próximo plantão.\n\n` +
                         `🚨 *${shiftName}*${category ? ` (${category})` : ""}\n` +
@@ -265,9 +266,15 @@ exports.onShiftConfirmed = onDocumentWritten(
         const userData = userDoc.data();
         const phone = userData.phone;
         const userName = userData.displayName || userData.email?.split('@')[0] || "Combatente";
+        const plan = userData.plan || 'trial';
 
         if (!phone) {
             console.log(`[onShiftConfirmed] Usuário ${userId} não possui telefone cadastrado.`);
+            return;
+        }
+
+        if (plan === 'basic') {
+            console.log(`[onShiftConfirmed] Usuário ${userId} está no plano basic. Pulando WhatsApp.`);
             return;
         }
 

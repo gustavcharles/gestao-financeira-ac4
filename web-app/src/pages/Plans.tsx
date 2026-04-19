@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Check, Gift, ArrowRight } from 'lucide-react';
+import { Shield, Check, Gift, ArrowRight, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { differenceInDays } from 'date-fns';
 
@@ -32,7 +32,11 @@ export const Plans: React.FC = () => {
                 {userProfile?.status === 'active' && (
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-full text-sm font-medium">
                         <Check size={16} />
-                        Seu plano {userProfile.plan === 'annual' ? 'Anual' : 'Mensal'} está ativo
+                        Seu plano {
+                            userProfile.plan === 'annual' ? 'Anual' : 
+                            userProfile.plan === 'monthly' ? 'Mensal Pro' : 
+                            userProfile.plan === 'basic' ? 'Basic' : 'Ativo'
+                        } está ativo
                     </div>
                 )}
                 {userProfile?.status === 'expired' && (
@@ -42,12 +46,67 @@ export const Plans: React.FC = () => {
                 )}
             </div>
 
-            <div className="flex flex-col md:flex-row gap-8 justify-center items-stretch pt-8 pl-4 pr-4">
-                {/* Plano Mensal */}
-                <div className="flex-1 max-w-sm rounded-[2rem] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden relative flex flex-col hover:border-emerald-500/50 transition-colors duration-300">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl mx-auto pt-8 pl-4 pr-4">
+                {/* Plano Basic */}
+                <div className="flex-1 rounded-[2rem] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden relative flex flex-col hover:border-slate-400 transition-colors duration-300">
+                    <div className="p-8 flex-1 flex flex-col">
+                        <div className="mb-6 mx-auto bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 font-bold px-4 py-1.5 rounded-full text-sm w-max">
+                            Plano Basic
+                        </div>
+
+                        <div className="flex items-baseline justify-center gap-1 mb-2">
+                            <span className="text-xl font-bold text-slate-500 dark:text-slate-400">R$</span>
+                            <span className="text-5xl font-black text-slate-700 dark:text-slate-200">9,90</span>
+                            <span className="text-slate-500 dark:text-slate-400">/mês</span>
+                        </div>
+                        <p className="text-slate-500 dark:text-slate-400 text-center mb-8 text-sm">
+                            Leve no bolso, forte na organização
+                        </p>
+
+                        <ul className="space-y-4 mb-8 flex-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+                            {[
+                                "Cálculo automático de AC-4",
+                                "Calendário de escalas ilimitado",
+                                "Transações ilimitadas",
+                                "Relatórios exportáveis",
+                                "Atualizações gratuitas",
+                                "Sem fidelidade",
+                            ].map((feature, i) => (
+                                <li key={i} className="flex items-start gap-3">
+                                    <div className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mt-0.5">
+                                        <Check size={12} className="text-emerald-600 dark:text-emerald-400 stroke-[3]" />
+                                    </div>
+                                    {feature}
+                                </li>
+                            ))}
+                            <li className="flex items-start gap-3 opacity-50">
+                                <div className="flex-shrink-0 w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mt-0.5">
+                                    <X size={12} className="text-slate-400" />
+                                </div>
+                                <span className="line-through">Recursos de WhatsApp</span>
+                            </li>
+                        </ul>
+
+                        <div className="mt-auto">
+                            <a 
+                                href="https://www.asaas.com/c/04t3cyxseol379cp" 
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full py-4 px-6 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 group block"
+                            >
+                                Assinar Basic
+                                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                            </a>
+                            <p className="text-center text-[10px] text-slate-500 mt-2 font-medium">(Boleto, Pix ou Cartão)</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Plano Mensal Pro */}
+                <div className="flex-1 rounded-[2rem] bg-white dark:bg-slate-800 border-2 border-emerald-500/20 dark:border-emerald-500/10 shadow-xl overflow-hidden relative flex flex-col hover:border-emerald-500/50 transition-colors duration-300">
                     <div className="p-8 flex-1 flex flex-col">
                         <div className="mb-6 mx-auto bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold px-4 py-1.5 rounded-full text-sm w-max">
-                            Plano Mensal
+                            Mensal Pro
                         </div>
 
                         <div className="flex items-baseline justify-center gap-1 mb-2">
@@ -56,22 +115,8 @@ export const Plans: React.FC = () => {
                             <span className="text-slate-500 dark:text-slate-400">/mês</span>
                         </div>
                         <p className="text-slate-500 dark:text-slate-400 text-center mb-8 text-sm">
-                            Ideal para começar a organizar sua escala
+                            A experiência completa com WhatsApp
                         </p>
-
-                        <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700/50 mb-8">
-                            <div className="flex items-start gap-3">
-                                <div className="text-amber-500 mt-0.5">
-                                    <Shield size={20} className="fill-amber-500" />
-                                </div>
-                                <div>
-                                    <h4 className="font-bold text-emerald-600 dark:text-emerald-400">15 Dias de Garantia</h4>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
-                                        Não gostou? Devolvemos seu dinheiro
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
 
                         <ul className="space-y-4 mb-8 flex-1 text-sm font-medium text-slate-700 dark:text-slate-300">
                             {[

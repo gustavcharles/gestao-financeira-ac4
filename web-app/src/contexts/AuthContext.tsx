@@ -10,7 +10,7 @@ export interface UserProfile {
     email: string;
 
     // Trial and Subscription fields
-    plan: 'trial' | 'annual' | null;
+    plan: 'trial' | 'annual' | 'monthly' | 'basic' | null;
     trialEndsAt: any; // Timestamp
     subscriptionEndsAt: any | null; // Timestamp
     paymentId: string | null; // ID do Asaas

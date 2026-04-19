@@ -415,6 +415,20 @@ exports.whatsappAgentWebhook = onRequest(
             }
 
             console.log(`[Agent] Usuário: ${user.id} (${user.email || "sem email"})`);
+            
+            // ── Verifica se o plano permite o uso do Agente ──
+            if (user.plan === 'basic') {
+                console.log(`[Agent] Usuário ${user.id} no plano basic. Bloqueando.`);
+                await sendWhatsAppReply(
+                    phoneNumber,
+                    "💡 *Recurso Pro*\n\n" +
+                    "O Agente de IA para registro de despesas e receitas é uma funcionalidade exclusiva dos planos *Mensal Pro* e *Anual*.\n\n" +
+                    "Seu plano atual (*Basic*) foca na organização manual via Web App.\n\n" +
+                    "Para liberar o lançamento por voz e texto aqui no WhatsApp, faça o upgrade em:\n" +
+                    "👉 *Menu → Assinatura*"
+                );
+                return;
+            }
 
             // ── Busca categorias do usuário ──
             const db = getDb();

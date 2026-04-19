@@ -11,7 +11,8 @@ import {
     X,
     Shield,
     Bell,
-    Calendar // Added for Scales
+    Calendar, // Added for Scales
+    CreditCard
 } from 'lucide-react';
 import { auth } from '../../services/firebase';
 import { useSettings } from '../../hooks/useSettings';
@@ -88,6 +89,7 @@ export const Layout = () => {
         { name: 'Despesas', path: '/despesas', icon: TrendingDown },
         { name: 'Novo +', path: '/novo', icon: PlusCircle },
         { name: 'Escalas', path: '/escalas', icon: Calendar },
+        { name: 'Planos', path: '/planos', icon: CreditCard },
         { name: 'Config', path: '/config', icon: Settings },
     ];
 
@@ -205,7 +207,7 @@ export const Layout = () => {
                             <span>Sair</span>
                         </button>
                         <div className="mt-4 px-4 text-xs text-slate-400 text-center">
-                            v1.2.3 (PWA & Push)
+                            v1.2.5 (PWA & Push)
                         </div>
                     </div>
                 </div>

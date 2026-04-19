@@ -9,6 +9,7 @@ import { Config } from './pages/Config';
 import { Admin } from './pages/Admin';
 import { Pending } from './pages/Pending';
 import { Expired } from './pages/Expired';
+import { Plans } from './pages/Plans';
 import { ScalesPage } from './modules/scales/pages/ScalesPage';
 import { ReloadPrompt } from './components/ui/ReloadPrompt';
 import { InstallPrompt } from './components/ui/InstallPrompt';
@@ -38,6 +39,7 @@ function AppContent() {
           <Route path="despesas" element={<Transactions defaultType="Despesa" />} />
           <Route path="novo" element={<Transactions />} />
           <Route path="escalas" element={<ScalesPage />} />
+          <Route path="planos" element={<Plans />} />
           <Route path="config" element={<Config />} />
 
           {/* Admin Route */}

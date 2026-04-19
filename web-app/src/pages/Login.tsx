@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, query, collection, where, getDocs, limit } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, query, collection, where, getDocs, getDoc, limit } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { Shield, Lock, Mail, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
@@ -88,15 +88,51 @@ export const Login = () => {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
 
-                // Auto-fix for Admin if account already existed
-                if (user.email === 'gustav.charles@gmail.com') {
-                    await setDoc(doc(db, 'users', user.uid), {
-                        email: user.email,
+                // Verificação de Perfil (Auto-Recuperação)
+                const profileRef = doc(db, 'users', user.uid);
+                const profileSnap = await getDoc(profileRef);
+
+                if (!profileRef.id || !profileSnap.exists()) {
+                    // Busca por e-mail caso não encontre pelo UID (possível ID desalinhado)
+                    const userEmail = user.email?.toLowerCase().trim() || "";
+                    if (!userEmail) throw new Error("E-mail não encontrado no provedor de autenticação.");
+
+                    const q = query(collection(db, 'users'), where('email', '==', userEmail), limit(1));
+                    const querySnap = await getDocs(q);
+
+                    if (!querySnap.empty) {
+                        const existingDoc = querySnap.docs[0];
+                        const existingData = existingDoc.data();
+                        
+                        // Recupera o perfil existente para o novo UID
+                        await setDoc(profileRef, {
+                            ...existingData,
+                            updatedAt: serverTimestamp()
+                        });
+                        console.log("Perfil recuperado via email para o UID:", user.uid);
+                    } else {
+                        // Se realmente não existe nenhum registro, cria um Trial padrão para não travar o login
+                        const isAdmin = userEmail === 'gustav.charles@gmail.com';
+                        const now = new Date();
+                        const trialEnds = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+
+                        await setDoc(profileRef, {
+                            email: userEmail,
+                            role: isAdmin ? 'admin' : 'user',
+                            status: isAdmin ? 'active' : 'trial',
+                            plan: isAdmin ? 'annual' : 'trial',
+                            trialEndsAt: isAdmin ? serverTimestamp() : trialEnds,
+                            createdAt: serverTimestamp(),
+                            lastSyncAt: null
+                        });
+                        console.log("Novo perfil padrão criado para:", userEmail);
+                    }
+                } else if (user.email === 'gustav.charles@gmail.com') {
+                    // Força admin a estar sempre ativo
+                    await setDoc(profileRef, {
                         role: 'admin',
                         status: 'active',
-                        plan: 'annual',
-                        subscriptionEndsAt: null,
-                        updatedAt: serverTimestamp()
+                        plan: 'annual'
                     }, { merge: true });
                 }
             }

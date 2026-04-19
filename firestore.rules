@@ -2,64 +2,79 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // --- Helper Functions ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
 
-    // Users collection: each user can read/write their own document
-    // Admin can read all users
+    // Curto-circuito é essencial aqui: se isOwner for true, o motor não executa o isAdmin()
+    // Isso evita a recursão infinita que bloqueia o acesso.
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      let profilePath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isAuthenticated() && exists(profilePath) && get(profilePath).data.role == 'admin';
+    }
+
+    function isDev() {
+      let profilePath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isAuthenticated() && exists(profilePath) && get(profilePath).data.role == 'dev';
+    }
+
+    function isDataOwner() {
+      let dataUid = 'user_id' in resource.data ? resource.data.user_id : ('userId' in resource.data ? resource.data.userId : null);
+      return isAuthenticated() && dataUid == request.auth.uid;
+    }
+
+    // --- Collections ---
+
+    // Users: Dono tem prioridade total (curto-circuito). Admin/Dev vem depois.
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read, write: if isOwner(userId) || isAdmin() || isDev();
+      
+      // Permitir consulta por e-mail (anti-abuse) - list é para queries
+      allow list: if request.query.limit <= 1;
 
-      // Subcollections under user (e.g., private/calendar)
       match /{subcollection=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if isOwner(userId) || isAdmin() || isDev();
       }
     }
 
-    // Login: allow querying users by email (for registration anti-abuse check)
-    match /users/{userId} {
-      allow list: if request.auth == null
-                  && request.query.limit <= 1;
-    }
-
-    // Transactions (transacoes): users can only access their own
+    // Transactions (transacoes)
     match /transacoes/{docId} {
-      allow read, write: if request.auth != null && resource == null || resource.data.user_id == request.auth.uid;
-      allow create: if request.auth != null;
-      allow read, update, delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated();
+      // Se for criação de um novo doc (resource == null), permitimos se estiver logado
+      // Se for leitura/update de doc existente, checamos dono ou admin
+      allow read, update, delete: if isAdmin() || isDataOwner();
     }
 
-    // User settings: each user manages their own
+    // User settings
     match /user_settings/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isOwner(userId) || isAdmin();
     }
 
-    // Scales: users can only access their own
+    // Scales & Shifts
     match /scales/{docId} {
-      allow create: if request.auth != null;
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow read, update, delete: if isAdmin() || isDataOwner();
     }
 
-    // Shifts: users can only access their own
     match /shifts/{docId} {
-      allow create: if request.auth != null;
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-    }
-    // App Config: only admin and dev can read/write
-    match /app_config/{document=**} {
-      allow read, write: if request.auth != null && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dev'
-      );
+      allow create: if isAuthenticated();
+      allow read, update, delete: if isAdmin() || isDataOwner();
     }
 
-    // App Feedback: any authenticated user can create, admin/dev can read
+    // App Config & Feedback
+    match /app_config/{document=**} {
+      allow read, write: if isAdmin() || isDev();
+    }
+
     match /app_feedback/{docId} {
-      allow create: if request.auth != null;
-      allow read: if request.auth != null && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dev'
-      );
+      allow create: if isAuthenticated();
+      allow read: if isAdmin() || isDev();
     }
   }
 }

@@ -49,16 +49,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const unsubProfile = onSnapshot(
                     doc(db, 'users', user.uid),
                     (doc) => {
+                        console.log(`[AuthContext] Profile update for UID: ${user.uid}. Exists: ${doc.exists()}`);
                         if (doc.exists()) {
                             setUserProfile(doc.data() as UserProfile);
                         } else {
-                            // Fallback if no profile exists yet (should exist from Login)
                             setUserProfile(null);
                         }
                         setLoading(false);
                     },
                     (error) => {
-                        console.error('[AuthContext] Firestore snapshot error:', error);
+                        console.error(`[AuthContext] Firestore error for UID: ${user.uid}:`, error);
                         setUserProfile(null);
                         setLoading(false);
                     }

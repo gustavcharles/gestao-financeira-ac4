@@ -22,7 +22,7 @@ export const checkDueBills = async (userId: string): Promise<DueBill[]> => {
 
         const q = query(
             collection(db, 'transacoes'),
-            where('userId', '==', userId),
+            where('user_id', '==', userId),
             where('type', '==', 'Despesa'),
             where('status', '==', 'pending'),
             where('dueDate', '<=', todayStr) // Assuming dueDate is stored as YYYY-MM-DD string

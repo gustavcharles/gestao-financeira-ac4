@@ -97,6 +97,12 @@ export async function syncPaymentsFromSheets(): Promise<SyncResult> {
                     continue; // Já processado
                 }
 
+                // Se o plano foi alterado manualmente pelo DEV/Admin, não sobrescrevemos
+                if (userData.planIsManual) {
+                    console.log(`⏭️ Usuário ${email} ignorado pois possui edição manual do plano.`);
+                    continue;
+                }
+
                 // 5. Atualizar status do usuário
                 const now = Timestamp.now();
                 const subscriptionEndsAt = Timestamp.fromDate(

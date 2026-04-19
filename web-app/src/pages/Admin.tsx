@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { collection, getDocs, updateDoc, doc, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, orderBy, query, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import type { UserProfile } from '../contexts/AuthContext';
-import { Check, X, Shield, User, Search, Loader2, RefreshCw, Clock, TrendingUp, AlertCircle, MessageSquare, QrCode, Send, Settings, Save, Smartphone, Star } from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
+import { Check, X, Shield, User, Search, Loader2, RefreshCw, Clock, TrendingUp, AlertCircle, MessageSquare, QrCode, Send, Settings, Save, Smartphone, Star, Edit3 } from 'lucide-react';
+import { format, differenceInDays, addDays } from 'date-fns';
 import { syncPaymentsFromSheets } from '../services/sheetsSync';
 import {
     type WhatsAppConfig,
@@ -28,6 +28,8 @@ export const Admin = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [syncing, setSyncing] = useState(false);
     const [activeTab, setActiveTab] = useState<'users' | 'whatsapp' | 'feedback'>('users');
+    const [editingUser, setEditingUser] = useState<UserData | null>(null);
+    const [isUpdatingPlan, setIsUpdatingPlan] = useState(false);
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -60,6 +62,32 @@ export const Admin = () => {
         } catch (error) {
             console.error("Error updating status:", error);
             alert("Erro ao atualizar status");
+        }
+    };
+
+    const handleUpdatePlan = async (userId: string, updates: Partial<UserData>) => {
+        setIsUpdatingPlan(true);
+        try {
+            const dataToUpdate: any = {};
+            if (updates.status !== undefined) dataToUpdate.status = updates.status;
+            if (updates.plan !== undefined) dataToUpdate.plan = updates.plan;
+            if (updates.subscriptionEndsAt !== undefined) dataToUpdate.subscriptionEndsAt = updates.subscriptionEndsAt;
+            if (updates.trialEndsAt !== undefined) dataToUpdate.trialEndsAt = updates.trialEndsAt;
+            
+            // Marca flag manual para não ser sobrescrito acidentalmente pelo Sheets Sync
+            dataToUpdate.planIsManual = true;
+
+            await updateDoc(doc(db, 'users', userId), dataToUpdate);
+
+            // Optimistic update
+            setUsers(users.map(u => u.id === userId ? { ...u, ...dataToUpdate } : u));
+            setEditingUser(null);
+            alert("Plano atualizado com sucesso (Manual)!");
+        } catch (error) {
+            console.error("Error updating plan:", error);
+            alert("Erro ao atualizar plano");
+        } finally {
+            setIsUpdatingPlan(false);
         }
     };
 
@@ -342,7 +370,10 @@ export const Admin = () => {
                                                 </td>
                                                 <td className="p-4">
                                                     <span className="text-slate-600 dark:text-slate-300 capitalize">
-                                                        {user.plan === 'annual' ? 'Anual' : user.plan === 'trial' ? 'Trial' : '-'}
+                                                        {user.plan === 'annual' ? 'Anual' : 
+                                                         user.plan === 'monthly' ? 'Mensal' : 
+                                                         user.plan === 'basic' ? 'Basic' : 
+                                                         user.plan === 'trial' ? 'Trial' : '-'}
                                                     </span>
                                                 </td>
                                                 <td className="p-4">
@@ -381,6 +412,13 @@ export const Admin = () => {
                                                 </td>
                                                 <td className="p-4 text-right">
                                                     <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => setEditingUser(user)}
+                                                            title="Editar Plano/Acesso"
+                                                            className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-800/40 rounded-lg transition-colors border border-indigo-100 dark:border-indigo-800/50"
+                                                        >
+                                                            <Edit3 size={18} />
+                                                        </button>
                                                         {user.role !== 'admin' && ( // Don't block admins
                                                             <>
                                                                 {user.status !== 'active' && (
@@ -412,6 +450,121 @@ export const Admin = () => {
                             </table>
                         </div>
                     </div>
+
+                    {/* Edit Plan Modal */}
+                    {editingUser && (
+                        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+                            <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl p-6 border border-slate-200 dark:border-slate-700">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div>
+                                        <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                            <Shield className="text-indigo-600 dark:text-indigo-400" />
+                                            Gerenciar Acesso
+                                        </h3>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{editingUser.email}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setEditingUser(null)}
+                                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold tracking-wide text-slate-600 dark:text-slate-300 mb-2">Plano Atual</label>
+                                        <select
+                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500"
+                                            value={editingUser.plan || 'trial'}
+                                            onChange={(e) => setEditingUser({ ...editingUser, plan: e.target.value as any })}
+                                        >
+                                            <option value="trial">Trial (Teste)</option>
+                                            <option value="basic">Basic</option>
+                                            <option value="monthly">Mensal</option>
+                                            <option value="annual">Anual</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold tracking-wide text-slate-600 dark:text-slate-300 mb-2">Status da Conta</label>
+                                        <select
+                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500"
+                                            value={editingUser.status}
+                                            onChange={(e) => setEditingUser({ ...editingUser, status: e.target.value as any })}
+                                        >
+                                            <option value="trial">Trial</option>
+                                            <option value="active">Ativo (Pago)</option>
+                                            <option value="expired">Expirado</option>
+                                            <option value="blocked">Bloqueado</option>
+                                            <option value="pending">Pendente</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="pt-2">
+                                        <label className="block text-sm font-semibold tracking-wide text-slate-600 dark:text-slate-300 mb-3">Estender Data de Acesso</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {[15, 30, 45].map(days => (
+                                                <button
+                                                    key={days}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const field = editingUser.status === 'trial' ? 'trialEndsAt' : 'subscriptionEndsAt';
+                                                        const currentVal = editingUser[field];
+                                                        
+                                                        let baseDate = new Date();
+                                                        if (currentVal) {
+                                                            const existingDate = currentVal.toDate ? currentVal.toDate() : new Date(currentVal);
+                                                            if (existingDate > baseDate) {
+                                                                baseDate = existingDate;
+                                                            }
+                                                        }
+                                                        
+                                                        const newDate = addDays(baseDate, days);
+                                                        setEditingUser({
+                                                            ...editingUser,
+                                                            [field]: Timestamp.fromDate(newDate)
+                                                        });
+                                                    }}
+                                                    className="py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40 rounded-xl text-sm font-bold border border-emerald-200 dark:border-emerald-800 transition-colors"
+                                                >
+                                                    +{days} Dias
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-2">
+                                            Vencimento configurado:{' '}
+                                            <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                                {(() => {
+                                                    const f = editingUser.status === 'trial' ? editingUser.trialEndsAt : editingUser.subscriptionEndsAt;
+                                                    if (!f) return 'Nenhuma';
+                                                    const d = f.toDate ? f.toDate() : new Date(f);
+                                                    return format(d, 'dd/MM/yyyy');
+                                                })()}
+                                            </span>
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 flex gap-3">
+                                    <button
+                                        onClick={() => setEditingUser(null)}
+                                        className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 rounded-xl font-medium transition-colors"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        onClick={() => handleUpdatePlan(editingUser.id, editingUser)}
+                                        disabled={isUpdatingPlan}
+                                        className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors flex justify-center items-center gap-2"
+                                    >
+                                        {isUpdatingPlan ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                                        Salvar Manual
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </>
             )}
         </div>

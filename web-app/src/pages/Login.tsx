@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, query, collection, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, query, collection, where, getDocs, limit } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { Shield, Lock, Mail, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
@@ -45,7 +45,8 @@ export const Login = () => {
                 // 🚫 ANTI-ABUSE: Verificar se o email já foi usado antes
                 const emailQuery = query(
                     collection(db, 'users'),
-                    where('email', '==', email.toLowerCase())
+                    where('email', '==', email.toLowerCase()),
+                    limit(1)
                 );
                 const existingUsers = await getDocs(emailQuery);
 

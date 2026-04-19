@@ -11,6 +11,107 @@ const { generateShiftsForBackend } = require("./utils/generator");
 const { whatsappAgentWebhook } = require("./src/whatsappAgent");
 exports.whatsappAgentWebhook = whatsappAgentWebhook;
 
+/**
+ * Webhook do Asaas para processar pagamentos e renováveis automaticamente.
+ * URL: https://us-central1-<project-id>.cloudfunctions.net/asaasWebhook
+ */
+exports.asaasWebhook = onRequest(
+    { region: "us-central1" },
+    async (req, res) => {
+        // O Asaas envia um POST com o corpo do evento
+        const { event, payment } = req.body;
+        
+        console.log(`[asaasWebhook] Evento recebido: ${event}`, {
+            paymentId: payment?.id,
+            customer: payment?.customer,
+            value: payment?.value
+        });
+
+        // 1. Validar se é um evento de pagamento confirmado
+        if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
+            const email = payment.customerEmail || payment.email;
+            
+            if (!email) {
+                console.error('[asaasWebhook] Pagamento sem e-mail:', payment.id);
+                res.status(400).send('E-mail não identificado no pagamento');
+                return;
+            }
+
+            // 2. Buscar o usuário pelo e-mail
+            const userSnap = await db.collection('users')
+                .where('email', '==', email.toLowerCase())
+                .limit(1)
+                .get();
+
+            if (userSnap.empty) {
+                // E-mail não encontrado: Avisar Admin conforme solicitado pelo usuário
+                const errorMsg = `⚠️ *WEBHOOK ASAAS: ERRO*\n\n` +
+                    `Pagamento confirmado para o e-mail: *${email}*\n` +
+                    `Valor: R$ ${payment.value}\n` +
+                    `ID: ${payment.id}\n\n` +
+                    `*PROBLEMA:* Usuário não encontrado no banco de dados do App. Verifique manualmente.`;
+                
+                console.error(`[asaasWebhook] Usuário não encontrado para o e-mail: ${email}`);
+                
+                // Enviar para o número do Admin (Gustavo)
+                await sendWhatsAppMessage('5562982755654', errorMsg);
+                
+                res.status(404).send('Usuário não encontrado');
+                return;
+            }
+
+            const userDoc = userSnap.docs[0];
+            const userId = userDoc.id;
+            const userData = userDoc.data();
+
+            // 3. Mapear o plano com base no valor
+            let plan = 'monthly'; // Padrão
+            let daysToAdd = 31;   // Segurança de 1 dia extra
+
+            if (payment.value <= 10.00) {
+                plan = 'basic';
+            } else if (payment.value > 100.00) {
+                plan = 'annual';
+                daysToAdd = 366;
+            }
+
+            // 4. Calcular nova data de expiração (Justo: a partir do vencimento antigo se for no futuro)
+            const now = new Date();
+            let baseDate = now;
+
+            if (userData.subscriptionEndsAt) {
+                const currentExpiry = userData.subscriptionEndsAt.toDate ? 
+                    userData.subscriptionEndsAt.toDate() : 
+                    new Date(userData.subscriptionEndsAt);
+                
+                // Se ainda tiver tempo sobrando, soma ao vencimento antigo
+                if (currentExpiry > now) {
+                    baseDate = currentExpiry;
+                }
+            }
+
+            const newExpiry = new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+
+            // 5. Atualizar perfil do usuário
+            await db.collection('users').doc(userId).update({
+                status: 'active',
+                plan: plan,
+                subscriptionEndsAt: admin.firestore.Timestamp.fromDate(newExpiry),
+                paymentId: payment.id,
+                lastSyncAt: admin.firestore.Timestamp.fromDate(now)
+            });
+
+            console.log(`[asaasWebhook] Sucesso: Usuário ${email} renovado como ${plan} até ${newExpiry.toISOString()}`);
+            res.status(200).json({ success: true, user: email, plan, expiresAt: newExpiry });
+        } else {
+            // Outros eventos (vencimento, deleção, etc) apenas logamos por enquanto
+            console.log(`[asaasWebhook] Evento ignora: ${event}`);
+            res.status(200).send('Evento ignorado');
+        }
+    }
+);
+
+
 const db = admin.firestore();
 const messaging = admin.messaging();
 

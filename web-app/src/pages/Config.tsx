@@ -5,7 +5,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { Trash2, Plus, GripVertical, CheckCircle2, X, Bell, BellOff, BellRing, Loader2, MessageCircle, Phone, Save, RotateCw, ShieldCheck, CreditCard, ArrowRight, ExternalLink } from 'lucide-react';
+import { Trash2, Plus, GripVertical, CheckCircle2, X, Bell, BellOff, BellRing, Loader2, MessageCircle, Phone, Save, RotateCw, ShieldCheck, CreditCard, ArrowRight } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { ReportGenerator } from '../components/reports/ReportGenerator';
 import { CategoryIconPicker } from '../components/ui/CategoryIconPicker';

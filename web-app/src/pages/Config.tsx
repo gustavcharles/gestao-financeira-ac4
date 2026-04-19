@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useSettings } from '../hooks/useSettings';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { Trash2, Plus, GripVertical, CheckCircle2, X, Bell, BellOff, BellRing, Loader2, MessageCircle, Phone, Save, RotateCw, ShieldCheck } from 'lucide-react';
+import { Trash2, Plus, GripVertical, CheckCircle2, X, Bell, BellOff, BellRing, Loader2, MessageCircle, Phone, Save, RotateCw, ShieldCheck, CreditCard, ArrowRight, ExternalLink } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { ReportGenerator } from '../components/reports/ReportGenerator';
 import { CategoryIconPicker } from '../components/ui/CategoryIconPicker';
@@ -111,6 +112,9 @@ export const Config = () => {
     return (
         <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 md:pb-0">
             <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Configurações</h2>
+            
+            {/* Subscription Section */}
+            <SubscriptionCard />
 
             {/* Profile Section */}
             <ProfileSection />
@@ -619,6 +623,128 @@ function ProfileSection() {
                     </button>
                 </div>
             </div>
+        </div>
+    );
+}
+
+function SubscriptionCard() {
+    const { userProfile, currentUser } = useAuth();
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+    const planNames = {
+        trial: 'Período de Testes',
+        basic: 'Plano Basic',
+        monthly: 'Mensal Pro',
+        annual: 'Plano Anual',
+    };
+
+    const statusColors = {
+        active: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20',
+        trial: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
+        expired: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20',
+        pending: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20',
+        blocked: 'text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/20',
+    };
+
+    const statusLabels = {
+        active: 'Ativo',
+        trial: 'Em Teste',
+        expired: 'Expirado',
+        pending: 'Pendente',
+        blocked: 'Bloqueado',
+    };
+
+    const handleCancel = () => {
+        const message = `Olá! Gostaria de solicitar o cancelamento da minha assinatura no Gestão AC-4 Pro.\n\n` +
+            `Dados da Conta:\n` +
+            `• E-mail: ${currentUser?.email}\n` +
+            `• Plano: ${planNames[userProfile?.plan || 'trial']}\n` +
+            `• Status: ${statusLabels[userProfile?.status || 'trial']}`;
+
+        const encodedMessage = encodeURIComponent(message);
+        window.open(`https://wa.me/5562982755654?text=${encodedMessage}`, '_blank');
+        setIsConfirmOpen(false);
+    };
+
+    if (!userProfile) return null;
+
+    const isActive = userProfile.status === 'active';
+    const isTrial = userProfile.status === 'trial';
+
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden mb-6">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <div>
+                    <h3 className="font-bold text-lg text-slate-800 dark:text-white mb-1">Meu Plano e Assinatura</h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Gerencie sua conta e renovações</p>
+                </div>
+                <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${statusColors[userProfile.status]}`}>
+                    {statusLabels[userProfile.status]}
+                </div>
+            </div>
+
+            <div className="p-6">
+                <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-xl flex items-center justify-center">
+                            <CreditCard size={24} />
+                        </div>
+                        <div>
+                            <div className="font-bold text-slate-800 dark:text-white">
+                                {planNames[userProfile.plan || 'trial']}
+                            </div>
+                            <div className="text-sm text-slate-500 dark:text-slate-400">
+                                {isTrial ? 'Seu período gratuito está ativo' : 'Assinatura recorrente via Asaas'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3 w-full md:w-auto">
+                        {!isActive && (
+                            <Link
+                                to="/planos"
+                                className="flex-1 md:flex-none bg-primary-600 hover:bg-primary-700 text-white px-6 py-2.5 rounded-xl font-medium transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary-200 dark:shadow-none"
+                            >
+                                <ArrowRight size={18} />
+                                {isTrial ? 'Assinar Agora' : 'Renovar Plano'}
+                            </Link>
+                        )}
+
+                        {isActive && (
+                            <button
+                                onClick={() => setIsConfirmOpen(true)}
+                                className="flex-1 md:flex-none px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 font-medium hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition-all flex items-center justify-center gap-2"
+                            >
+                                Cancelar Plano
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {isTrial && userProfile.trialEndsAt && (
+                    <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30 flex items-center gap-3">
+                        <div className="text-blue-600 dark:text-blue-400">
+                            <ShieldCheck size={20} />
+                        </div>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                            Seu teste expira em <span className="font-bold">
+                                {userProfile.trialEndsAt.toDate ? userProfile.trialEndsAt.toDate().toLocaleDateString('pt-BR') : new Date(userProfile.trialEndsAt).toLocaleDateString('pt-BR')}
+                            </span>.
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            <ConfirmModal
+                isOpen={isConfirmOpen}
+                title="Cancelar Assinatura?"
+                message="Ao cancelar, você perderá acesso aos recursos Premium e suporte prioritário ao fim do período atual. Deseja falar com o suporte para cancelar?"
+                onConfirm={handleCancel}
+                onCancel={() => setIsConfirmOpen(false)}
+                confirmText="Falar com Suporte"
+                cancelText="Manter Assinatura"
+                type="warning"
+            />
         </div>
     );
 }

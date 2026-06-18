@@ -15,7 +15,10 @@ import {
     Edit2,
     CheckCircle2,
     Copy,
-    FileText
+    FileText,
+    TrendingUp,
+    TrendingDown,
+    DollarSign
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
@@ -88,7 +91,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
             const current = getMonthFromDate(new Date());
             if (months.includes(current)) setMonthFilter(current);
         }
-    }, [months]);
+    }, [months, monthFilter]);
 
     const filtered = useMemo(() => {
         return transactions.filter(t => {
@@ -106,6 +109,23 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
             }
         });
     }, [transactions, searchTerm, typeFilter, monthFilter, sortOrder]);
+
+    const totals = useMemo(() => {
+        let receitas = 0;
+        let despesas = 0;
+        filtered.forEach(t => {
+            if (t.tipo === 'Receita') {
+                receitas += t.valor;
+            } else {
+                despesas += t.valor;
+            }
+        });
+        return {
+            receitas,
+            despesas,
+            saldo: receitas - despesas
+        };
+    }, [filtered]);
 
     const handleSave = async (data: Omit<Transaction, 'id'>) => {
         if (editingItem && editingItem.id) {
@@ -130,8 +150,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
 
     const handleDuplicate = (item: Transaction) => {
         // Create a copy without the ID to treat as new
-        const copy = { ...item };
-        delete (copy as any).id;
+        const { id: _, ...copy } = item;
         setEditingItem(copy);
         setIsFormOpen(true);
     };
@@ -245,7 +264,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
 
                     <select
                         value={typeFilter}
-                        onChange={(e) => setTypeFilter(e.target.value as any)}
+                        onChange={(e) => setTypeFilter(e.target.value as 'Todos' | 'Receita' | 'Despesa')}
                         className="px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-primary-500"
                     >
                         <option value="Todos">Todos os tipos</option>
@@ -254,6 +273,71 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
                     </select>
                 </div>
             </div>
+
+            {/* Totals Summary */}
+            {typeFilter === 'Receita' && (
+                <div className="bg-emerald-500/5 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div>
+                        <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Total de Receitas Filtradas</span>
+                        <h3 className="text-3xl font-extrabold text-emerald-700 dark:text-emerald-300 mt-1">{formatCurrency(totals.receitas)}</h3>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                        <TrendingUp size={24} />
+                    </div>
+                </div>
+            )}
+
+            {typeFilter === 'Despesa' && (
+                <div className="bg-rose-500/5 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div>
+                        <span className="text-sm font-medium text-rose-600 dark:text-rose-400">Total de Despesas Filtradas</span>
+                        <h3 className="text-3xl font-extrabold text-rose-700 dark:text-rose-300 mt-1">{formatCurrency(totals.despesas)}</h3>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                        <TrendingDown size={24} />
+                    </div>
+                </div>
+            )}
+
+            {typeFilter === 'Todos' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-emerald-500/5 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                        <div>
+                            <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Total Receitas</span>
+                            <h3 className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 mt-1">{formatCurrency(totals.receitas)}</h3>
+                        </div>
+                        <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                            <TrendingUp size={24} />
+                        </div>
+                    </div>
+                    <div className="bg-rose-500/5 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                        <div>
+                            <span className="text-sm font-medium text-rose-600 dark:text-rose-400">Total Despesas</span>
+                            <h3 className="text-2xl font-bold text-rose-700 dark:text-rose-300 mt-1">{formatCurrency(totals.despesas)}</h3>
+                        </div>
+                        <div className="w-12 h-12 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                            <TrendingDown size={24} />
+                        </div>
+                    </div>
+                    <div className={`p-5 rounded-2xl flex items-center justify-between border shadow-sm ${
+                        totals.saldo >= 0 
+                            ? 'bg-blue-500/5 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/30' 
+                            : 'bg-amber-500/5 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/30'
+                    }`}>
+                        <div>
+                            <span className={`text-sm font-medium ${totals.saldo >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'}`}>Saldo Líquido</span>
+                            <h3 className={`text-2xl font-bold mt-1 ${totals.saldo >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-amber-700 dark:text-amber-300'}`}>{formatCurrency(totals.saldo)}</h3>
+                        </div>
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                            totals.saldo >= 0 
+                                ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' 
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                        }`}>
+                            <DollarSign size={24} />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* List */}
             <div className="space-y-3">
@@ -271,7 +355,10 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
                         // Safety check: settings.categories[item.tipo] might be undefined or string[] if not migrated
                         const categoryList = settings.categories[item.tipo] || [];
                         const catItem = Array.isArray(categoryList)
-                            ? categoryList.find((c: any) => c.name === item.categoria || c === item.categoria)
+                            ? (categoryList as ({ name: string; icon: string; color: string } | string)[]).find((c) => {
+                                if (typeof c === 'string') return c === item.categoria;
+                                return c.name === item.categoria;
+                            })
                             : null;
 
                         // If catItem is object, use it. If string, default stats.

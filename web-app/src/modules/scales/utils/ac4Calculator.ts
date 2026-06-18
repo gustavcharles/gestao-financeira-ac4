@@ -14,6 +14,33 @@ export const DEFAULT_AC4_RATES: AC4Rates = {
     dayWeekday: 26.47
 };
 
+// Histórico de tarifas AC-4 ordenado por vigência
+export const AC4_RATES_HISTORY: { effectiveFrom: Date; rates: AC4Rates }[] = [
+    {
+        effectiveFrom: new Date(2000, 0, 1, 0, 0, 0), // Tarifas padrão/antigas
+        rates: DEFAULT_AC4_RATES
+    },
+    {
+        effectiveFrom: new Date(2026, 6, 1, 0, 0, 0), // A partir de 01/07/2026 (mês 6 em JS)
+        rates: {
+            nightWeekend: 45.00,
+            nightWeekday: 33.00,
+            dayWeekend: 40.00,
+            dayWeekday: 30.00
+        }
+    }
+];
+
+/**
+ * Retorna as tarifas vigentes para uma determinada data.
+ */
+export const getRatesForDate = (date: Date): AC4Rates => {
+    // Ordenar de forma decrescente para encontrar o primeiro match válido
+    const sorted = [...AC4_RATES_HISTORY].sort((a, b) => b.effectiveFrom.getTime() - a.effectiveFrom.getTime());
+    const match = sorted.find(item => date >= item.effectiveFrom);
+    return match ? match.rates : DEFAULT_AC4_RATES;
+};
+
 /**
  * Calculates the value of an AC-4 shift based on start/end times and rates.
  * Logic based on user specification:
@@ -23,8 +50,8 @@ export const DEFAULT_AC4_RATES: AC4Rates = {
  * 
  * Note: User spec for Day Weekend said "Sex, Sáb, Dom", matching Night logic (Fri night counts as weekend rate).
  */
-export const calculateShiftValue = (start: Date, end: Date, rates: AC4Rates = DEFAULT_AC4_RATES): number => {
-    let current = startOfHour(start);
+export const calculateShiftValue = (start: Date, end: Date, rates?: AC4Rates): number => {
+    const current = startOfHour(start);
     // If start is not exact hour, we might miss minutes, but user logic implies hour-based "tarifa".
     // "aplicar a tarifa correta dependendo se é dia/noite" usually implies full hour blocks.
     // If the user wants minute precision, we'd need to adjust, but "loop while" implies steps.
@@ -49,6 +76,8 @@ export const calculateShiftValue = (start: Date, end: Date, rates: AC4Rates = DE
         // If start 08:00, end 08:30. Loop 08:00 < 08:30. 
         // We add full rate. 
         // This is standard for "Hora AC-4", usually paid by full hour worked or started.
+
+        const activeRates = rates || getRatesForDate(iter);
 
         const h = getHours(iter);
         const d = getDay(iter); // 0=Dom, 1=Seg, ..., 5=Sex, 6=Sáb
@@ -82,9 +111,9 @@ export const calculateShiftValue = (start: Date, end: Date, rates: AC4Rates = DE
             // This matches standard "Weekend" definitions often used in shifts (Friday night to Monday morning).
 
             if (operationalDay === 5 || operationalDay === 6 || operationalDay === 0) {
-                rate = rates.nightWeekend;
+                rate = activeRates.nightWeekend;
             } else {
-                rate = rates.nightWeekday;
+                rate = activeRates.nightWeekday;
             }
         } else {
             // Daytime: 05:00 to 21:59
@@ -95,9 +124,9 @@ export const calculateShiftValue = (start: Date, end: Date, rates: AC4Rates = DE
             // If d === 5 (Friday), rate is Weekend.
 
             if (d === 5 || d === 6 || d === 0) {
-                rate = rates.dayWeekend;
+                rate = activeRates.dayWeekend;
             } else {
-                rate = rates.dayWeekday;
+                rate = activeRates.dayWeekday;
             }
         }
 

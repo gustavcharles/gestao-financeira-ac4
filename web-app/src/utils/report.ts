@@ -90,7 +90,7 @@ export const generateTransactionReport = (transactions: Transaction[], title: st
         didParseCell: (data) => {
             // Conditional formatting for Value column
             if (data.section === 'body' && data.column.index === 4) {
-                const rawRow = data.row.raw as unknown as any[];
+                const rawRow = data.row.raw as unknown[];
                 const isExpense = rawRow[3] === 'Despesa'; // Index 3 is Tipo
                 if (isExpense) {
                     data.cell.styles.textColor = [239, 68, 68];
@@ -159,7 +159,7 @@ export const generateDetailedReport = (transactions: Transaction[], month: strin
 
     // -- 3. Visual Breakdown (Simulated Charts) --
     // Top Categories Bar Chart
-    let yChart = 100;
+    const yChart = 100;
     doc.setFontSize(12);
     doc.setTextColor(30, 41, 59);
     doc.setFont("helvetica", "bold");
@@ -285,7 +285,7 @@ export const generateAnnualReport = (transactions: Transaction[], year: string) 
     drawBox(138, "Saldo Líquido", saldo, saldo >= 0 ? [16, 185, 129] : [239, 68, 68]);
 
     // -- 3. Visual Breakdown (Simulated Chart) --
-    let yChart = 100;
+    const yChart = 100;
     doc.setFontSize(12);
     doc.setTextColor(30, 41, 59);
     doc.setFont("helvetica", "bold");
@@ -336,7 +336,7 @@ export const generateAnnualReport = (transactions: Transaction[], year: string) 
     doc.setFontSize(12);
     doc.setTextColor(30, 41, 59);
     doc.setFont("helvetica", "bold");
-    doc.text("Maiores Transações do Ano", 14, yHighlights);
+    doc.text("Top 5 transações do ano", 14, yHighlights);
 
     const topRevenues = yearTransactions
         .filter(t => t.tipo === 'Receita')
@@ -348,28 +348,41 @@ export const generateAnnualReport = (transactions: Transaction[], year: string) 
         .sort((a, b) => b.valor - a.valor)
         .slice(0, 5);
 
-    const highlightBody: string[][] = [];
-    const maxLength = Math.max(topRevenues.length, topExpenses.length);
-    for (let i = 0; i < Math.min(maxLength, 5); i++) {
-        const rev = topRevenues[i];
-        const exp = topExpenses[i];
-        highlightBody.push([
-            rev ? rev.descricao : '-',
-            rev ? formatCurrency(rev.valor) : '-',
-            exp ? exp.descricao : '-',
-            exp ? formatCurrency(exp.valor) : '-'
-        ]);
-    }
+    // Tabela 1: Top 5 Receitas
+    const revenuesBody = topRevenues.map(r => [
+        r.data.split('-').reverse().join('/'),
+        r.descricao,
+        r.categoria,
+        formatCurrency(r.valor)
+    ]);
 
     autoTable(doc, {
         startY: yHighlights + 5,
-        head: [['Receita (Descrição)', 'Valor', 'Despesa (Descrição)', 'Valor']],
-        body: highlightBody,
+        head: [['Data', 'Descrição (Receita)', 'Categoria', 'Valor']],
+        body: revenuesBody.length > 0 ? revenuesBody : [['-', 'Nenhuma receita registrada', '-', '-']],
         theme: 'striped',
-        headStyles: { fillColor: [51, 65, 85] },
+        headStyles: { fillColor: [16, 185, 129] }, // Emerald 500
         columnStyles: {
-            1: { halign: 'right', textColor: [16, 185, 129], fontStyle: 'bold' },
-            3: { halign: 'right', textColor: [239, 68, 68], fontStyle: 'bold' }
+            3: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129] }
+        }
+    });
+
+    // Tabela 2: Top 5 Despesas
+    const expensesBody = topExpenses.map(e => [
+        e.data.split('-').reverse().join('/'),
+        e.descricao,
+        e.categoria,
+        formatCurrency(e.valor)
+    ]);
+
+    autoTable(doc, {
+        startY: (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8,
+        head: [['Data', 'Descrição (Despesa)', 'Categoria', 'Valor']],
+        body: expensesBody.length > 0 ? expensesBody : [['-', 'Nenhuma despesa registrada', '-', '-']],
+        theme: 'striped',
+        headStyles: { fillColor: [239, 68, 68] }, // Red 500
+        columnStyles: {
+            3: { halign: 'right', fontStyle: 'bold', textColor: [239, 68, 68] }
         }
     });
 

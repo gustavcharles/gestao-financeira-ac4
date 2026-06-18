@@ -42,6 +42,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
     const [typeFilter, setTypeFilter] = useState<'Todos' | 'Receita' | 'Despesa'>(defaultType);
     const [monthFilter, setMonthFilter] = useState<string>('Todos'); // "Todos" or "Janeiro 2026"
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // 'desc' = Newest first
+    const initializedRef = React.useRef(false);
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<Transaction | null>(null);
@@ -87,11 +88,14 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
 
     // Initialize month filter to current
     React.useEffect(() => {
-        if (monthFilter === 'Todos' && months.length > 0) {
+        if (!initializedRef.current && months.length > 0) {
             const current = getMonthFromDate(new Date());
-            if (months.includes(current)) setMonthFilter(current);
+            if (months.includes(current)) {
+                setMonthFilter(current);
+                initializedRef.current = true;
+            }
         }
-    }, [months, monthFilter]);
+    }, [months]);
 
     const filtered = useMemo(() => {
         return transactions.filter(t => {
@@ -150,7 +154,8 @@ export const Transactions: React.FC<TransactionsProps> = ({ defaultType = 'Todos
 
     const handleDuplicate = (item: Transaction) => {
         // Create a copy without the ID to treat as new
-        const { id: _, ...copy } = item;
+        const copy = { ...item };
+        delete copy.id;
         setEditingItem(copy);
         setIsFormOpen(true);
     };

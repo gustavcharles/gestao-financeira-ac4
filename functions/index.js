@@ -29,10 +29,47 @@ exports.asaasWebhook = onRequest(
 
         // 1. Validar se é um evento de pagamento confirmado
         if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
-            const email = payment.customerEmail || payment.email;
+            let email = payment.customerEmail || payment.email;
             
+            // O Asaas parou de enviar o email no payload de alguns eventos.
+            // Buscar diretamente na API caso tenhamos o ID do customer.
+            if (!email && payment.customer) {
+                let asaasApiKey = process.env.ASAAS_API_KEY;
+                
+                // Fallback: tentar buscar a API Key no Firestore
+                if (!asaasApiKey) {
+                    const asaasConfigSnap = await db.collection("app_config").doc("asaas").get();
+                    if (asaasConfigSnap.exists) {
+                        asaasApiKey = asaasConfigSnap.data().apiKey;
+                    }
+                }
+
+                if (asaasApiKey) {
+                    try {
+                        const response = await fetch(`https://api.asaas.com/v3/customers/${payment.customer}`, {
+                            method: 'GET',
+                            headers: {
+                                'access_token': asaasApiKey,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        if (response.ok) {
+                            const customerData = await response.json();
+                            email = customerData.email;
+                            console.log(`[asaasWebhook] Email recuperado via API para ${payment.customer}: ${email}`);
+                        } else {
+                            console.error(`[asaasWebhook] Falha API Asaas. Status: ${response.status}`);
+                        }
+                    } catch (err) {
+                        console.error('[asaasWebhook] Erro requisição API Asaas:', err);
+                    }
+                } else {
+                    console.error('[asaasWebhook] Chave da API do Asaas não encontrada nas variáveis de ambiente nem no Firestore.');
+                }
+            }
+
             if (!email) {
-                console.error('[asaasWebhook] Pagamento sem e-mail:', payment.id);
+                console.error('[asaasWebhook] Pagamento sem e-mail e sem acesso à API:', payment.id);
                 res.status(400).send('E-mail não identificado no pagamento');
                 return;
             }

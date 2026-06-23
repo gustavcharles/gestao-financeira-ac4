@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs, updateDoc, doc, orderBy, query, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import type { UserProfile } from '../contexts/AuthContext';
-import { Check, X, Shield, User, Search, Loader2, RefreshCw, Clock, TrendingUp, AlertCircle, MessageSquare, QrCode, Send, Settings, Save, Smartphone, Star, Edit3 } from 'lucide-react';
+import { Check, X, Shield, User, Search, Loader2, RefreshCw, Clock, TrendingUp, AlertCircle, MessageSquare, QrCode, Send, Settings, Save, Smartphone, Star, Edit3, DollarSign, PieChart as PieChartIcon, Activity } from 'lucide-react';
 import { format, differenceInDays, addDays } from 'date-fns';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { syncPaymentsFromSheets } from '../services/sheetsSync';
 import {
     type WhatsAppConfig,
@@ -19,7 +20,7 @@ import {
 
 interface UserData extends UserProfile {
     id: string;
-    createdAt?: any;
+    createdAt?: Timestamp | { toDate: () => Date } | string;
 }
 
 export const Admin = () => {
@@ -68,7 +69,7 @@ export const Admin = () => {
     const handleUpdatePlan = async (userId: string, updates: Partial<UserData>) => {
         setIsUpdatingPlan(true);
         try {
-            const dataToUpdate: any = {};
+            const dataToUpdate: Record<string, unknown> = {};
             if (updates.status !== undefined) dataToUpdate.status = updates.status;
             if (updates.plan !== undefined) dataToUpdate.plan = updates.plan;
             if (updates.subscriptionEndsAt !== undefined) dataToUpdate.subscriptionEndsAt = updates.subscriptionEndsAt;
@@ -140,7 +141,7 @@ export const Admin = () => {
                 setSyncing(false);
             }, 100);
 
-        } catch (error: any) {
+        } catch (err) { const error = err as Error;
             // Erro com modal customizado
             const modal = document.createElement('div');
             modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
@@ -174,10 +175,32 @@ export const Admin = () => {
     };
 
     // Calculate metrics
+    const activeUsers = users.filter(u => u.status === 'active');
+    
+    let mrr = 0;
+    const plansDistribution = { basic: 0, monthly: 0, annual: 0, none: 0 };
+
+    activeUsers.forEach(u => {
+        if (u.plan === 'basic') {
+            mrr += 9.90;
+            plansDistribution.basic++;
+        } else if (u.plan === 'monthly') {
+            mrr += 15.90;
+            plansDistribution.monthly++;
+        } else if (u.plan === 'annual') {
+            mrr += 12.49; // 149.90 / 12
+            plansDistribution.annual++;
+        } else {
+            plansDistribution.none++;
+        }
+    });
+
+    const arr = mrr * 12;
+
     const metrics = {
         total: users.length,
         trial: users.filter(u => u.status === 'trial').length,
-        active: users.filter(u => u.status === 'active').length,
+        active: activeUsers.length,
         expired: users.filter(u => u.status === 'expired').length,
         expiringIn7Days: users.filter(u => {
             if (!u.trialEndsAt || u.status !== 'trial') return false;
@@ -185,7 +208,22 @@ export const Admin = () => {
             const daysLeft = differenceInDays(trialEnd, new Date());
             return daysLeft >= 0 && daysLeft <= 7;
         }).length,
+        activeExpiringIn7Days: activeUsers.filter(u => {
+            if (!u.subscriptionEndsAt) return false;
+            const subEnd = u.subscriptionEndsAt.toDate ? u.subscriptionEndsAt.toDate() : new Date(u.subscriptionEndsAt);
+            const daysLeft = differenceInDays(subEnd, new Date());
+            return daysLeft >= 0 && daysLeft <= 7;
+        }).length,
+        mrr,
+        arr,
+        plansDistribution
     };
+
+    const pieData = [
+        { name: 'Basic', value: metrics.plansDistribution.basic, color: '#3b82f6' }, // blue-500
+        { name: 'Mensal Pro', value: metrics.plansDistribution.monthly, color: '#10b981' }, // emerald-500
+        { name: 'Anual', value: metrics.plansDistribution.annual, color: '#f59e0b' }, // amber-500
+    ].filter(item => item.value > 0);
 
     const filteredUsers = users.filter(user =>
         user.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -289,6 +327,91 @@ export const Admin = () => {
                                 <span className="text-2xl font-bold">{metrics.total > 0 ? ((metrics.active / metrics.total) * 100).toFixed(0) : 0}%</span>
                             </div>
                             <p className="text-sm text-indigo-100">Taxa de Conversão</p>
+                        </div>
+                    </div>
+
+                    {/* Financial Dashboard */}
+                    <div className="mb-6 animate-in slide-in-from-bottom-4 duration-700">
+                        <div className="flex items-center gap-2 mb-4">
+                            <DollarSign className="text-emerald-600 dark:text-emerald-400" />
+                            <h3 className="text-xl font-bold text-slate-800 dark:text-white">Previsibilidade Financeira</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm hover:border-emerald-500/50 transition-colors">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
+                                        <DollarSign size={20} className="text-emerald-600 dark:text-emerald-400" />
+                                    </div>
+                                </div>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">MRR (Receita Mensal)</p>
+                                <h4 className="text-2xl font-black text-slate-800 dark:text-white mt-1">
+                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.mrr)}
+                                </h4>
+                            </div>
+
+                            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm hover:border-blue-500/50 transition-colors">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                                        <Activity size={20} className="text-blue-600 dark:text-blue-400" />
+                                    </div>
+                                </div>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">ARR (Receita Anual Estimada)</p>
+                                <h4 className="text-2xl font-black text-slate-800 dark:text-white mt-1">
+                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.arr)}
+                                </h4>
+                            </div>
+
+                            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm hover:border-red-500/50 transition-colors">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                                        <AlertCircle size={20} className="text-red-600 dark:text-red-400" />
+                                    </div>
+                                </div>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Ativos expirando (7 dias)</p>
+                                <h4 className="text-2xl font-black text-slate-800 dark:text-white mt-1">
+                                    {metrics.activeExpiringIn7Days} <span className="text-sm font-normal text-slate-500">usuários</span>
+                                </h4>
+                            </div>
+                        </div>
+
+                        {/* Plan Distribution Chart */}
+                        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm mb-6 hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-2 mb-6">
+                                <PieChartIcon className="text-indigo-600 dark:text-indigo-400" size={20} />
+                                <h4 className="text-lg font-bold text-slate-800 dark:text-white">Distribuição de Planos Ativos</h4>
+                            </div>
+                            
+                            {pieData.length > 0 ? (
+                                <div className="h-64 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={pieData}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={70}
+                                                outerRadius={90}
+                                                paddingAngle={5}
+                                                dataKey="value"
+                                            >
+                                                {pieData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip 
+                                                formatter={(value) => [`${value} usuário(s)`, 'Quantidade']}
+                                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                            />
+                                            <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            ) : (
+                                <div className="h-32 flex items-center justify-center text-slate-500 dark:text-slate-400 text-sm">
+                                    Nenhum plano ativo encontrado.
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -408,7 +531,7 @@ export const Admin = () => {
                                                     <span className="text-slate-600 dark:text-slate-300 capitalize">{user.role}</span>
                                                 </td>
                                                 <td className="p-4 text-slate-500">
-                                                    {user.createdAt?.toDate ? format(user.createdAt.toDate(), 'dd/MM/yyyy HH:mm') : '-'}
+                                                    {(user.createdAt as Timestamp)?.toDate ? format((user.createdAt as Timestamp).toDate(), 'dd/MM/yyyy HH:mm') : '-'}
                                                 </td>
                                                 <td className="p-4 text-right">
                                                     <div className="flex items-center justify-end gap-2">
@@ -477,7 +600,7 @@ export const Admin = () => {
                                         <select
                                             className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500"
                                             value={editingUser.plan || 'trial'}
-                                            onChange={(e) => setEditingUser({ ...editingUser, plan: e.target.value as any })}
+                                            onChange={(e) => setEditingUser({ ...editingUser, plan: e.target.value as UserData['plan'] })}
                                         >
                                             <option value="trial">Trial (Teste)</option>
                                             <option value="basic">Basic</option>
@@ -491,7 +614,7 @@ export const Admin = () => {
                                         <select
                                             className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500"
                                             value={editingUser.status}
-                                            onChange={(e) => setEditingUser({ ...editingUser, status: e.target.value as any })}
+                                            onChange={(e) => setEditingUser({ ...editingUser, status: e.target.value as UserData['status'] })}
                                         >
                                             <option value="trial">Trial</option>
                                             <option value="active">Ativo (Pago)</option>
@@ -616,7 +739,7 @@ function AdminWhatsApp({ users }: { users: UserData[] }) {
             await deleteWhatsAppInstance();
             setQrCode(null);
             alert('Instância apagada com sucesso. Você pode criar uma nova agora.');
-        } catch (error: any) {
+        } catch (err) { const error = err as Error;
             console.error(error);
             alert('Erro ao apagar instância: ' + error.message);
         } finally {
@@ -666,7 +789,7 @@ function AdminWhatsApp({ users }: { users: UserData[] }) {
             await createWhatsAppInstance();
             alert('Instância criada (ou já existia). O status será atualizado.');
             handleCheckStatus();
-        } catch (error: any) {
+        } catch (err) { const error = err as Error;
             alert('Erro: ' + error.message);
         } finally {
             setIsCreating(false);
@@ -684,7 +807,7 @@ function AdminWhatsApp({ users }: { users: UserData[] }) {
                 alert('QR Code não retornado. Verifique se a instância já está conectada ou se houve erro.');
                 handleCheckStatus();
             }
-        } catch (error: any) {
+        } catch (err) { const error = err as Error;
             alert('Erro: ' + error.message);
         } finally {
             setIsLoadingQR(false);
@@ -737,7 +860,7 @@ function AdminWhatsApp({ users }: { users: UserData[] }) {
                 setQrCode(null);
             }
             // State is also updated in Firestore by the Cloud Function
-        } catch (error: any) {
+        } catch (err) { const error = err as Error;
             alert('Erro: ' + error.message);
         } finally {
             setIsCheckingStatus(false);
@@ -750,7 +873,7 @@ function AdminWhatsApp({ users }: { users: UserData[] }) {
         try {
             await sendWhatsAppTest(testPhone, testMessage);
             alert('Enviado com sucesso!');
-        } catch (error: any) {
+        } catch (err) { const error = err as Error;
             alert('Erro: ' + error.message);
         } finally {
             setIsTesting(false);
@@ -767,7 +890,7 @@ function AdminWhatsApp({ users }: { users: UserData[] }) {
             const res = await sendWhatsAppBroadcast(broadcastMessage);
             alert(`Broadcast finalizado! Resultados: ${res.data?.results?.length || 0} enviados.`);
             setBroadcastMessage('');
-        } catch (error: any) {
+        } catch (err) { const error = err as Error;
             alert('Erro: ' + error.message);
         } finally {
             setIsBroadcasting(false);
@@ -897,7 +1020,7 @@ interface FeedbackData {
     comment: string;
     userEmail: string;
     userId: string;
-    createdAt: any;
+    createdAt: Timestamp | { toDate: () => Date } | string;
     platform: string;
 }
 
@@ -985,7 +1108,7 @@ function AdminFeedback() {
                                         <div className="text-xs text-slate-400">ID: {item.userId.slice(0, 8)}...</div>
                                     </td>
                                     <td className="p-4 text-slate-500 whitespace-nowrap">
-                                        {item.createdAt?.toDate ? format(item.createdAt.toDate(), 'dd/MM/yyyy HH:mm') : '-'}
+                                        {(item.createdAt as Timestamp)?.toDate ? format((item.createdAt as Timestamp).toDate(), 'dd/MM/yyyy HH:mm') : '-'}
                                     </td>
                                     <td className="p-4">
                                         <p className="text-slate-600 dark:text-slate-300 max-w-md break-words">

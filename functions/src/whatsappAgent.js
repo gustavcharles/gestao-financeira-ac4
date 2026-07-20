@@ -7,12 +7,10 @@ const OPENROUTER_API_KEY = defineSecret("OPENROUTER_API_KEY");
 
 // Configuração do OpenRouter — modelos em ordem de prioridade (fallback automático)
 const OPENROUTER_MODELS = [
-    "google/gemini-2.0-flash-001",                   // 1º: Gemini 2.0 Flash — Estabilidade e baixo custo
-    "google/gemini-2.0-flash-lite-preview-02-05:free", // 2º: Flash Lite (Gratuito se disponível)
-    "liquid/lfm-2.5-1.2b-instruct:free",             // 3º: Liquid LFM (Backup estável)
-    "meta-llama/llama-3.3-70b-instruct:free",       // 4º: Llama 3.3 70B
-    "qwen/qwen3-next-80b-a3b-instruct:free",         // 5º: Qwen3 80B
-    "google/gemma-3-27b-it:free",                    // 6º: Gemma 3
+    "google/gemini-2.5-flash",                       // 1º: Gemini 2.5 Flash — Atual, rápido e barato
+    "google/gemini-3.5-flash",                       // 2º: Gemini 3.5 Flash — Mais inteligente
+    "google/gemini-3.1-flash-lite",                  // 3º: Gemini 3.1 Flash Lite
+    "google/gemma-4-31b-it:free",                    // 4º: Gemma 4 (Opção gratuita)
 ];
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -51,6 +49,16 @@ function insertBrazilianNinthDigit(phone) {
         return phone.slice(0, 2) + "9" + phone.slice(2);
     }
     return phone;
+}
+
+/**
+ * Normaliza número de telefone para o padrão do WhatsApp (55 + DDD + Numero de 9 digitos)
+ */
+function formatWhatsAppNumber(phone) {
+    let clean = phone.replace(/\D/g, "");
+    let withoutCountry = clean.startsWith("55") ? clean.slice(2) : clean;
+    withoutCountry = insertBrazilianNinthDigit(withoutCountry);
+    return "55" + withoutCountry;
 }
 
 /**
@@ -167,18 +175,26 @@ async function sendWhatsAppReply(phoneNumber, message) {
     let baseUrl = config.baseUrl.trim();
     if (!baseUrl.includes("://")) baseUrl = "https://" + baseUrl;
 
+    const formattedPhone = formatWhatsAppNumber(phoneNumber);
+
     const url = `${baseUrl}/message/sendText/${encodeURIComponent(config.instanceName)}`;
 
     try {
-        await fetch(url, {
+        const response = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json", "apikey": config.apiKey },
             body: JSON.stringify({
-                number: phoneNumber,
+                number: formattedPhone,
                 options: { delay: 1000, presence: "composing", linkPreview: false },
                 text: message,
             }),
         });
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error(`[Agent] Erro ao enviar resposta WhatsApp para ${formattedPhone} (Status ${response.status}): ${errText}`);
+        } else {
+            console.log(`[Agent] Resposta WhatsApp enviada com sucesso para ${formattedPhone}`);
+        }
     } catch (err) {
         console.error("[Agent] Falha ao enviar resposta WhatsApp:", err);
     }
@@ -277,11 +293,9 @@ async function callOpenRouter(apiKey, messages) {
             return data.choices[0].message.content;
 
         } catch (err) {
-            if (err.message.includes("429")) {
-                lastError = err;
-                continue; // tenta o próximo
-            }
-            throw err; // outros erros: não tenta próximo modelo
+            console.warn(`[Agent] Falha no modelo ${model}: ${err.message}`);
+            lastError = err;
+            continue; // tenta o próximo modelo da lista
         }
     }
 

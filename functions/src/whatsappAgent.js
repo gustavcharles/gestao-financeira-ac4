@@ -193,7 +193,8 @@ async function sendWhatsAppReply(phoneNumber, message) {
             const errText = await response.text();
             console.error(`[Agent] Erro ao enviar resposta WhatsApp para ${formattedPhone} (Status ${response.status}): ${errText}`);
         } else {
-            console.log(`[Agent] Resposta WhatsApp enviada com sucesso para ${formattedPhone}`);
+            const resData = await response.json();
+            console.log(`[Agent] Resposta WhatsApp enviada com sucesso para ${formattedPhone}:`, JSON.stringify(resData));
         }
     } catch (err) {
         console.error("[Agent] Falha ao enviar resposta WhatsApp:", err);

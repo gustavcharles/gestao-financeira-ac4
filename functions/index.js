@@ -727,6 +727,31 @@ exports.whatsappCreateInstance = onRequest(
                     return;
                 }
 
+                // Configura o webhook automaticamente após criar a instância
+                try {
+                    const webhookUrl = "https://whatsappagentwebhook-k2mmtihrsq-uc.a.run.app";
+                    console.log(`[WhatsApp] Configurando webhook automaticamente para ${config.instanceName}: ${webhookUrl}`);
+                    const whResponse = await fetch(`${baseUrl}/webhook/set/${encodeURIComponent(config.instanceName)}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'apikey': config.apiKey
+                        },
+                        body: JSON.stringify({
+                            webhook: {
+                                enabled: true,
+                                url: webhookUrl,
+                                webhookByEvents: false,
+                                events: ['MESSAGES_UPSERT']
+                            }
+                        })
+                    });
+                    const whData = await whResponse.json();
+                    console.log(`[WhatsApp] Resposta webhook/set: status=${whResponse.status}`, whData);
+                } catch (whErr) {
+                    console.error("[WhatsApp] Erro ao configurar webhook automaticamente:", whErr);
+                }
+
                 // Atualiza status localmente
                 await db.collection("app_config").doc("whatsapp").set({ status: 'created' }, { merge: true });
 

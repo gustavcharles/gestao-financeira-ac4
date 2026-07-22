@@ -687,13 +687,15 @@ async function sendWhatsAppMessage(phone, message) {
             })
         });
 
+        const data = await response.json().catch(() => ({}));
+
         if (!response.ok) {
-            const errText = await response.text();
-            console.error(`[WhatsApp] Erro ao enviar para ${formattedPhone}: ${errText}`);
-            return { success: false, error: errText };
+            console.error(`[WhatsApp] Erro ao enviar para ${formattedPhone}:`, data);
+            return { success: false, error: JSON.stringify(data) };
         }
 
-        return { success: true };
+        console.log(`[WhatsApp] Sucesso ao enviar para ${formattedPhone}:`, data);
+        return { success: true, data };
     } catch (error) {
         console.error(`[WhatsApp] Falha na requisição para ${formattedPhone}:`, error);
         return { success: false, error: error.message };
@@ -770,7 +772,7 @@ exports.whatsappCreateInstance = onRequest(
                     const whData = await whResponse.json();
                     console.log(`[WhatsApp] Resposta webhook/set: status=${whResponse.status}`, whData);
                 } catch (whErr) {
-                    console.error("[WhatsApp] Erro ao configurar webhook automaticamente:", whErr);
+                    console.error("[WhatsApp] Erro ao configurar webhook:", whErr);
                 }
 
                 // Atualiza status localmente
@@ -940,7 +942,7 @@ exports.whatsappSendTest = onRequest(
                 res.status(400).json({ success: false, error: result.error });
                 return;
             }
-            res.json({ success: true });
+            res.json({ success: true, result });
         });
     }
 );

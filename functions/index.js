@@ -160,7 +160,7 @@ const BRAZIL_TZ = "America/Sao_Paulo";
  */
 exports.sendShiftReminders = onSchedule(
     {
-        schedule: "0 19 * * *",    // 19:00 todo dia (noite anterior)
+        schedule: "0 7,19 * * *",   // 07:00 e 19:00 todo dia (manhã e noite anterior)
         timeZone: BRAZIL_TZ,
         region: "us-central1",
     },
@@ -254,115 +254,136 @@ exports.sendShiftReminders = onSchedule(
 
                 const shiftName = shift.shiftTypeSnapshot?.name ?? "Plantão";
                 const category = shift.scaleCategory ?? "";
-                const reminderKey = `push_${userId}_${shift.id}`;
-
-                // Atomic history check (acts as a lock across multiple instances)
-                const historyRef = db.collection("notification_history").doc(reminderKey);
+                // Push Notification
+                const pushLockKey = `push_${userId}_${shift.id}`;
+                const pushHistoryRef = db.collection("notification_history").doc(pushLockKey);
+                let shouldSendPush = false;
                 try {
-                    // .create() fails if the document already exists
-                    await historyRef.create({ 
+                    await pushHistoryRef.create({ 
                         sentAt: admin.firestore.Timestamp.fromDate(now), 
                         userId, 
                         shiftId: shift.id,
                         type: 'push'
                     });
+                    shouldSendPush = true;
                 } catch (err) {
                     if (err.code === 6) { // ALREADY_EXISTS
-                        console.log(`[sendShiftReminders] Lock: ${reminderKey} já processado. Pulando.`);
-                        continue;
+                        console.log(`[sendShiftReminders] Lock Push: ${pushLockKey} já processado.`);
+                    } else {
+                        console.error(`[sendShiftReminders] Erro ao criar lock push ${pushLockKey}:`, err);
                     }
-                    console.error(`[sendShiftReminders] Erro ao criar lock ${reminderKey}:`, err);
-                    continue; 
                 }
 
-                // Push Notification
-                const uniqueTokens = [...new Set(fcmTokens)];
-                if (uniqueTokens.length > 0) {
-                    const title = `🔔 Plantão hoje — ${timeStr}`;
-                    const body = `${shiftName}${category ? ` (${category})` : ""} · ${dateStr}`;
+                if (shouldSendPush) {
+                    const uniqueTokens = [...new Set(fcmTokens)];
+                    if (uniqueTokens.length > 0) {
+                        const title = `🔔 Plantão hoje — ${timeStr}`;
+                        const body = `${shiftName}${category ? ` (${category})` : ""} · ${dateStr}`;
 
-                    console.log(`[sendShiftReminders] Enviando push para ${userId} (${uniqueTokens.length} tokens). Shift: ${shift.id}`);
+                        console.log(`[sendShiftReminders] Enviando push para ${userId} (${uniqueTokens.length} tokens). Shift: ${shift.id}`);
 
-                    const message = {
-                        notification: { title, body },
-                        data: {
-                            shiftId: shift.id,
-                            userId,
-                            type: "shift_reminder",
-                        },
-                        tokens: uniqueTokens,
-                        android: {
-                            collapseKey: reminderKey,
-                            notification: {
-                                icon: "ic_notification",
-                                channelId: "shift_reminders",
-                                priority: "high",
+                        const message = {
+                            notification: { title, body },
+                            data: {
+                                shiftId: shift.id,
+                                userId,
+                                type: "shift_reminder",
                             },
-                        },
-                        apns: {
-                            headers: {
-                                'apns-collapse-id': reminderKey,
+                            tokens: uniqueTokens,
+                            android: {
+                                collapseKey: pushLockKey,
+                                notification: {
+                                    icon: "ic_notification",
+                                    channelId: "shift_reminders",
+                                    priority: "high",
+                                },
                             },
-                        },
-                        webpush: {
-                            headers: {
-                                'Topic': reminderKey 
+                            apns: {
+                                headers: {
+                                    'apns-collapse-id': pushLockKey,
+                                },
                             },
-                            notification: {
-                                icon: "/pwa-192x192.png",
-                                badge: "/pwa-192x192.png",
+                            webpush: {
+                                headers: {
+                                    'Topic': pushLockKey 
+                                },
+                                notification: {
+                                    icon: "/pwa-192x192.png",
+                                    badge: "/pwa-192x192.png",
+                                },
+                                fcmOptions: { link: "/escalas" },
                             },
-                            fcmOptions: { link: "/escalas" },
-                        },
-                    };
+                        };
 
-                    try {
-                        const response = await messaging.sendEachForMulticast(message);
-                        console.log(`[sendShiftReminders] Resposta FCM para ${userId}: Sucesso=${response.successCount}, Falha=${response.failureCount}`);
-                        
-                        if (response.failureCount > 0) {
-                            response.responses.forEach((resp, idx) => {
-                                if (!resp.success) {
-                                    console.error(`[sendShiftReminders] Falha no token ${uniqueTokens[idx].substring(0, 10)}...: ${resp.error?.code} - ${resp.error?.message}`);
-                                }
-                            });
-                        }
-
-                        // Token Cleanup: Remove tokens que não são mais válidos
-                        if (response.failureCount > 0) {
-                            const tokensToRemove = [];
-                            response.responses.forEach((resp, idx) => {
-                                if (!resp.success) {
-                                    const errCode = resp.error?.code;
-                                    if (errCode === 'messaging/registration-token-not-registered' || errCode === 'messaging/invalid-registration-token') {
-                                        tokensToRemove.push(uniqueTokens[idx]);
-                                    }
-                                }
-                            });
+                        try {
+                            const response = await messaging.sendEachForMulticast(message);
+                            console.log(`[sendShiftReminders] Resposta FCM para ${userId}: Sucesso=${response.successCount}, Falha=${response.failureCount}`);
                             
-                            if (tokensToRemove.length > 0) {
-                                console.log(`[sendShiftReminders] Removendo ${tokensToRemove.length} tokens inválidos para ${userId}`);
-                                await db.collection("users").doc(userId).update({
-                                    fcmTokens: admin.firestore.FieldValue.arrayRemove(...tokensToRemove)
+                            if (response.failureCount > 0) {
+                                response.responses.forEach((resp, idx) => {
+                                    if (!resp.success) {
+                                        console.error(`[sendShiftReminders] Falha no token ${uniqueTokens[idx].substring(0, 10)}...: ${resp.error?.code} - ${resp.error?.message}`);
+                                    }
                                 });
                             }
+
+                            // Token Cleanup: Remove tokens que não são mais válidos
+                            if (response.failureCount > 0) {
+                                const tokensToRemove = [];
+                                response.responses.forEach((resp, idx) => {
+                                    if (!resp.success) {
+                                        const errCode = resp.error?.code;
+                                        if (errCode === 'messaging/registration-token-not-registered' || errCode === 'messaging/invalid-registration-token') {
+                                            tokensToRemove.push(uniqueTokens[idx]);
+                                        }
+                                    }
+                                });
+                                
+                                if (tokensToRemove.length > 0) {
+                                    console.log(`[sendShiftReminders] Removendo ${tokensToRemove.length} tokens inválidos para ${userId}`);
+                                    await db.collection("users").doc(userId).update({
+                                        fcmTokens: admin.firestore.FieldValue.arrayRemove(...tokensToRemove)
+                                    });
+                                }
+                            }
+                        } catch (err) {
+                            console.error(`[sendShiftReminders] Erro FCM para ${userId}:`, err);
                         }
-                    } catch (err) {
-                        console.error(`[sendShiftReminders] Erro FCM para ${userId}:`, err);
                     }
                 }
 
                 // WhatsApp Reminder
                 const plan = userData.plan || 'trial';
                 if (phone && plan !== 'basic') {
-                    const waMessage = `Olá, ${userName}!\n\n` +
-                        `Atenção para o seu próximo plantão.\n\n` +
-                        `🚨 *${shiftName}*${category ? ` (${category})` : ""}\n` +
-                        `📅 Data: ${fullDateStr}\n` +
-                        `🕒 Horário: ${timeStr} - ${endTimeStr}\n\n` +
-                        `Bom serviço! 🚒`;
-                    
-                    await sendWhatsAppMessage(phone, waMessage);
+                    const waLockKey = `wa_${userId}_${shift.id}`;
+                    const waHistoryRef = db.collection("notification_history").doc(waLockKey);
+                    let shouldSendWa = false;
+                    try {
+                        await waHistoryRef.create({ 
+                            sentAt: admin.firestore.Timestamp.fromDate(now), 
+                            userId, 
+                            shiftId: shift.id,
+                            type: 'whatsapp'
+                        });
+                        shouldSendWa = true;
+                    } catch (err) {
+                        if (err.code === 6) { // ALREADY_EXISTS
+                            console.log(`[sendShiftReminders] Lock WA: ${waLockKey} já processado.`);
+                        } else {
+                            console.error(`[sendShiftReminders] Erro ao criar lock WA ${waLockKey}:`, err);
+                        }
+                    }
+
+                    if (shouldSendWa) {
+                        const waMessage = `Olá, ${userName}!\n\n` +
+                            `Atenção para o seu próximo plantão.\n\n` +
+                            `🚨 *${shiftName}*${category ? ` (${category})` : ""}\n` +
+                            `📅 Data: ${fullDateStr}\n` +
+                            `🕒 Horário: ${timeStr} - ${endTimeStr}\n\n` +
+                            `Bom serviço! 🚒`;
+                        
+                        await sendWhatsAppMessage(phone, waMessage);
+                    }
                 }
             }
         });

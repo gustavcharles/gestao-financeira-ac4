@@ -52,13 +52,15 @@ function insertBrazilianNinthDigit(phone) {
 }
 
 /**
- * Normaliza número de telefone para o padrão do WhatsApp (55 + DDD + Numero de 9 digitos)
+ * Normaliza número de telefone para o padrão do WhatsApp (55 + DDD + Numero)
  */
 function formatWhatsAppNumber(phone) {
-    let clean = phone.replace(/\D/g, "");
-    let withoutCountry = clean.startsWith("55") ? clean.slice(2) : clean;
-    withoutCountry = insertBrazilianNinthDigit(withoutCountry);
-    return "55" + withoutCountry;
+    if (!phone) return null;
+    let cleaned = phone.replace(/\D/g, "");
+    if (cleaned.length === 10 || cleaned.length === 11) {
+        cleaned = "55" + cleaned;
+    }
+    return cleaned;
 }
 
 /**

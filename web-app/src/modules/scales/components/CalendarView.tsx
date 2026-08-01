@@ -98,6 +98,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         if (name.includes('folga') || (category as string) === 'Folga') {
             return {
                 label: 'FOLGA',
+                shortLabel: 'FLG',
                 colorClass: 'bg-[#22c55e] text-white shadow-sm',
                 dotClass: 'bg-[#22c55e]',
                 textClass: 'text-[#22c55e]'
@@ -109,6 +110,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             case 'AC-4':
                 return {
                     label: 'AC-4',
+                    shortLabel: 'AC4',
                     colorClass: 'bg-[#10b981] text-white shadow-sm',
                     dotClass: 'bg-[#10b981]',
                     textClass: 'text-[#10b981]'
@@ -117,14 +119,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             case 'Troca':
                 return {
                     label: 'TROCA',
+                    shortLabel: 'TRC',
                     colorClass: 'bg-[#0ea5e9] text-white shadow-sm',
                     dotClass: 'bg-[#0ea5e9]',
-                    textClass: 'text-[#0ea5e9]'
+                    textClass: 'text-sky-400'
                 };
 
             case 'Suplementar':
                 return {
                     label: 'SUPL.',
+                    shortLabel: 'SUP',
                     colorClass: 'bg-[#8b5cf6] text-white shadow-sm',
                     dotClass: 'bg-[#8b5cf6]',
                     textClass: 'text-violet-400'
@@ -133,6 +137,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             case 'Outros':
                 return {
                     label: 'OUTROS',
+                    shortLabel: 'OUT',
                     colorClass: 'bg-[#f59e0b] text-white shadow-sm',
                     dotClass: 'bg-[#f59e0b]',
                     textClass: 'text-amber-400'
@@ -142,9 +147,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             default:
                 return {
                     label: 'DIÁRIO',
-                    colorClass: 'bg-[#2563eb] text-white shadow-sm',
-                    dotClass: 'bg-[#2563eb]',
-                    textClass: 'text-blue-400'
+                    shortLabel: 'DIA',
+                    colorClass: 'bg-[#ef4444] text-white shadow-sm',
+                    dotClass: 'bg-[#ef4444]',
+                    textClass: 'text-red-400'
                 };
         }
     };
@@ -159,10 +165,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         .slice(0, 10);
 
     return (
-        <div className="bg-[#0b1329] text-white rounded-3xl p-4 sm:p-6 shadow-2xl border border-slate-800/80 max-w-4xl mx-auto space-y-6">
+        <div className="bg-[#0b1329] text-white rounded-2xl sm:rounded-3xl px-2 py-3.5 sm:p-6 shadow-2xl border border-slate-800/80 max-w-4xl mx-auto space-y-4 sm:space-y-6">
 
             {/* Header com Nome do Mês Centralizado e Setas < Mês 2025 > estilo Print 1 */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-2 border-b border-slate-800/60">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 pb-2 border-b border-slate-800/60">
 
                 {/* Visual Mode Selector & Hoje */}
                 <div className="flex items-center space-x-2 order-2 sm:order-1">
@@ -205,7 +211,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         <ChevronLeft className="w-6 h-6" />
                     </button>
 
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-wide text-white capitalize min-w-[150px] text-center">
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-wide text-white capitalize min-w-[140px] text-center">
                         {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
                     </h2>
 
@@ -222,16 +228,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </div>
 
             {/* Dias da Semana (SEG TER QUA QUI SEX SÁB DOM) */}
-            <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center">
+            <div className="grid grid-cols-7 gap-1 text-center">
                 {['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'].map(day => (
-                    <div key={day} className="text-xs font-semibold tracking-wider text-slate-400 py-1">
+                    <div key={day} className="text-[11px] sm:text-xs font-bold tracking-wider text-slate-400 py-1">
                         {day}
                     </div>
                 ))}
             </div>
 
             {/* Grid dos Dias do Calendário */}
-            <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
                 {days.map(day => {
                     const dayShifts = getShiftsForDay(day);
                     const isCurrentMonth = isSameMonth(day, currentDate);
@@ -246,7 +252,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                 onDateClick?.(day);
                             }}
                             className={`
-                                min-h-[72px] sm:min-h-[88px] rounded-2xl p-1.5 sm:p-2 flex flex-col justify-between transition-all cursor-pointer relative group
+                                min-h-[66px] sm:min-h-[88px] rounded-xl sm:rounded-2xl p-1 sm:p-2 flex flex-col justify-between transition-all cursor-pointer relative group
                                 ${isCurrentMonth ? 'bg-[#131b2e] hover:bg-[#18233c]' : 'bg-[#0e1628]/40 text-slate-600 opacity-40'}
                                 ${isSelected ? 'ring-2 ring-blue-500 bg-[#172341] shadow-lg shadow-blue-500/10' : 'border border-slate-800/60'}
                             `}
@@ -256,7 +262,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                 <span className={`
                                     text-xs sm:text-sm font-semibold tracking-tight
                                     ${isTodayDate
-                                        ? 'bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center shadow'
+                                        ? 'bg-blue-600 text-white w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center shadow text-[11px] sm:text-xs'
                                         : isCurrentMonth ? 'text-white' : 'text-slate-500'
                                     }
                                 `}>
@@ -278,13 +284,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                             }}
                                             className={`
                                                 ${badge.colorClass}
-                                                text-[10px] sm:text-[11px] font-bold px-1 sm:px-2 py-0.5 rounded-md
-                                                uppercase tracking-wider text-center transition-transform hover:scale-105
-                                                truncate cursor-pointer
+                                                text-[9px] sm:text-[11px] font-extrabold px-0.5 sm:px-2 py-0.5 rounded
+                                                uppercase tracking-tighter sm:tracking-wider text-center transition-transform hover:scale-105
+                                                cursor-pointer overflow-hidden leading-none flex items-center justify-center
                                             `}
                                             title={`${shift.shiftTypeSnapshot?.name || 'Plantão'} (${shift.shiftTypeSnapshot?.startTime} - ${shift.shiftTypeSnapshot?.endTime})`}
                                         >
-                                            {badge.label}
+                                            <span className="sm:hidden">{badge.shortLabel}</span>
+                                            <span className="hidden sm:inline">{badge.label}</span>
                                         </div>
                                     );
                                 })}
@@ -297,7 +304,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             {/* Legenda de Categorias de Escala */}
             <div className="flex items-center justify-center flex-wrap gap-4 pt-3 pb-2 text-xs font-semibold border-t border-slate-800/60">
                 <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-[#2563eb] inline-block shadow-sm" />
+                    <span className="w-3 h-3 rounded-full bg-[#ef4444] inline-block shadow-sm" />
                     <span className="text-slate-300">DIÁRIO</span>
                 </div>
                 <div className="flex items-center gap-1.5">

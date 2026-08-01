@@ -89,13 +89,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         return shifts.filter(s => s.date === dateStr && s.status !== 'canceled');
     };
 
-    // Helper para definir etiqueta (badge) do plantão (DIA, NOITE, FOLGA, AC-4, etc.)
+    // Helper para definir etiqueta (badge) do plantão por categoria de escala (Diário, AC-4, Troca, Suplementar, Outros, Folga)
     const getBadgeInfo = (shift: ShiftEvent) => {
-        const code = shift.shiftTypeSnapshot?.code?.toUpperCase() || '';
         const name = shift.shiftTypeSnapshot?.name?.toLowerCase() || '';
         const category = shift.scaleCategory || (shift.scaleId ? scales.find(s => s.id === shift.scaleId)?.category : undefined);
-        const isNight = shift.shiftTypeSnapshot?.isNightShift;
 
+        // 1. Folga explícita
         if (name.includes('folga') || (category as string) === 'Folga') {
             return {
                 label: 'FOLGA',
@@ -105,40 +104,49 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             };
         }
 
-        if (category === 'AC-4' || shift.shiftTypeSnapshot?.isAC4) {
-            return {
-                label: 'AC-4',
-                colorClass: 'bg-[#10b981] text-white shadow-sm',
-                dotClass: 'bg-[#10b981]',
-                textClass: 'text-[#10b981]'
-            };
-        }
+        // 2. Categorias de Escala com Cores Distintas
+        switch (category) {
+            case 'AC-4':
+                return {
+                    label: 'AC-4',
+                    colorClass: 'bg-[#10b981] text-white shadow-sm',
+                    dotClass: 'bg-[#10b981]',
+                    textClass: 'text-[#10b981]'
+                };
 
-        if (isNight || code.includes('N') || name.includes('noite') || name.includes('noturno')) {
-            return {
-                label: 'NOITE',
-                colorClass: 'bg-[#1e293b] text-white border border-slate-700/80 shadow-sm',
-                dotClass: 'bg-[#334155]',
-                textClass: 'text-slate-300'
-            };
-        }
+            case 'Troca':
+                return {
+                    label: 'TROCA',
+                    colorClass: 'bg-[#0ea5e9] text-white shadow-sm',
+                    dotClass: 'bg-[#0ea5e9]',
+                    textClass: 'text-[#0ea5e9]'
+                };
 
-        if (code.includes('24') || name.includes('24h') || shift.shiftTypeSnapshot?.hours === 24) {
-            return {
-                label: '24h',
-                colorClass: 'bg-[#ef4444] text-white shadow-sm',
-                dotClass: 'bg-[#ef4444]',
-                textClass: 'text-red-400'
-            };
-        }
+            case 'Suplementar':
+                return {
+                    label: 'SUPL.',
+                    colorClass: 'bg-[#8b5cf6] text-white shadow-sm',
+                    dotClass: 'bg-[#8b5cf6]',
+                    textClass: 'text-violet-400'
+                };
 
-        // Default Dia
-        return {
-            label: 'DIA',
-            colorClass: 'bg-[#2563eb] text-white shadow-sm',
-            dotClass: 'bg-[#2563eb]',
-            textClass: 'text-blue-400'
-        };
+            case 'Outros':
+                return {
+                    label: 'OUTROS',
+                    colorClass: 'bg-[#f59e0b] text-white shadow-sm',
+                    dotClass: 'bg-[#f59e0b]',
+                    textClass: 'text-amber-400'
+                };
+
+            case 'Diário':
+            default:
+                return {
+                    label: 'DIÁRIO',
+                    colorClass: 'bg-[#2563eb] text-white shadow-sm',
+                    dotClass: 'bg-[#2563eb]',
+                    textClass: 'text-blue-400'
+                };
+        }
     };
 
     // Plantões futuros a partir do dia selecionado ou de hoje para a seção "Próximos serviços"
@@ -286,23 +294,31 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 })}
             </div>
 
-            {/* Legenda de Plantões */}
+            {/* Legenda de Categorias de Escala */}
             <div className="flex items-center justify-center flex-wrap gap-4 pt-3 pb-2 text-xs font-semibold border-t border-slate-800/60">
                 <div className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full bg-[#2563eb] inline-block shadow-sm" />
-                    <span className="text-slate-300">DIA</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-[#1e293b] border border-slate-600 inline-block shadow-sm" />
-                    <span className="text-slate-300">NOITE</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-[#22c55e] inline-block shadow-sm" />
-                    <span className="text-slate-300">FOLGA</span>
+                    <span className="text-slate-300">DIÁRIO</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full bg-[#10b981] inline-block shadow-sm" />
                     <span className="text-slate-300">AC-4</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-[#0ea5e9] inline-block shadow-sm" />
+                    <span className="text-slate-300">TROCA</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-[#8b5cf6] inline-block shadow-sm" />
+                    <span className="text-slate-300">SUPL.</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-[#f59e0b] inline-block shadow-sm" />
+                    <span className="text-slate-300">OUTROS</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-[#22c55e] inline-block shadow-sm" />
+                    <span className="text-slate-300">FOLGA</span>
                 </div>
             </div>
 
@@ -335,10 +351,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
                                         <div>
                                             <div className="text-sm sm:text-base font-semibold text-slate-100 group-hover:text-white transition-colors">
-                                                {formattedDate}
+                                                {formattedDate} - <span className={`${badge.textClass} font-bold`}>{badge.label}</span>
                                             </div>
-                                            <div className={`text-xs sm:text-sm font-bold ${badge.textClass} capitalize`}>
+                                            <div className="text-xs sm:text-sm font-medium text-slate-400">
                                                 {shift.shiftTypeSnapshot?.name || badge.label}
+                                                {shift.shiftTypeSnapshot?.startTime && shift.shiftTypeSnapshot?.endTime
+                                                    ? ` (${shift.shiftTypeSnapshot.startTime} - ${shift.shiftTypeSnapshot.endTime})`
+                                                    : ''}
                                             </div>
                                         </div>
                                     </div>

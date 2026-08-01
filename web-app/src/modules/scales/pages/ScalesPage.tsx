@@ -7,6 +7,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { ScaleService } from '../services/scaleService';
 import { ShiftDetailsModal } from '../components/ShiftDetailsModal';
 import { Toast, type ToastType } from '../../../components/ui/Toast';
+import { Timestamp } from 'firebase/firestore';
 import type { ShiftScale, ShiftEvent } from '../types';
 import { DEFAULT_SHIFT_TYPES } from '../types';
 import { calculateShiftValue } from '../utils/ac4Calculator';
@@ -144,11 +145,11 @@ export const ScalesPage: React.FC = () => {
                 // Create new scale
                 const newScale: Omit<ShiftScale, 'id'> = {
                     ...scaleData,
-                    createdAt: new Date() as any,
-                    updatedAt: new Date() as any,
+                    createdAt: Timestamp.now(),
+                    updatedAt: Timestamp.now(),
                     isActive: true
                 };
-                await ScaleService.createScale(newScale as any);
+                await ScaleService.createScale(newScale);
                 await refreshScales();
                 setIsEditing(false);
 
@@ -174,7 +175,7 @@ export const ScalesPage: React.FC = () => {
                     const [eh, em] = endH.split(':').map(Number);
 
                     const shiftStart = new Date(y, m, d, sh, sm);
-                    let shiftEnd = new Date(y, m, d, eh, em);
+                    const shiftEnd = new Date(y, m, d, eh, em);
                     if (shiftEnd <= shiftStart) shiftEnd.setDate(shiftEnd.getDate() + 1);
 
                     const value = calculateShiftValue(shiftStart, shiftEnd);
@@ -222,9 +223,10 @@ export const ScalesPage: React.FC = () => {
             });
             setIncomePrompt(null);
             showToast(`Receita de ${formatCurrency(incomePrompt.value)} gerada com sucesso!`, 'success');
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Erro ao gerar receita:", error);
-            showToast(`Erro ao gerar receita: ${error.message || 'Desconhecido'}`, 'error');
+            const err = error as Error;
+            showToast(`Erro ao gerar receita: ${err.message || 'Desconhecido'}`, 'error');
         } finally {
             setIsGeneratingIncome(false);
         }
@@ -265,7 +267,7 @@ export const ScalesPage: React.FC = () => {
                 const override: ShiftEvent = {
                     ...shiftToDelete,
                     isManualOverride: true,
-                    status: 'canceled' as any
+                    status: 'canceled'
                 };
 
                 await ScaleService.saveShiftEvent(override);
@@ -332,21 +334,21 @@ export const ScalesPage: React.FC = () => {
 
     // View principal: Calendário
     return (
-        <div className="max-w-6xl mx-auto p-4 space-y-6">
-            <div className="flex flex-col-reverse md:flex-col space-y-6 space-y-reverse md:space-y-6">
+        <div className="max-w-4xl mx-auto p-4 space-y-6">
+            <div className="flex flex-col space-y-6">
 
                 {/* Header Card */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white dark:bg-gray-800 p-3 md:p-4 rounded-lg shadow gap-3 md:gap-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-[#0b1329] border border-slate-800/80 p-4 sm:p-5 rounded-3xl shadow-xl gap-4">
                     <div>
-                        <h1 className="text-lg md:text-2xl font-bold dark:text-white">Minhas Escalas</h1>
-                        <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-wide">Minhas Escalas</h1>
+                        <p className="text-xs sm:text-sm text-slate-400">
                             Gerencie suas escalas regulares e plantões extras
                         </p>
                     </div>
-                    <div className="flex gap-2 w-full md:w-auto">
+                    <div className="flex gap-2 w-full sm:w-auto">
                         <button
                             onClick={() => { setEditingScaleId(null); setIsEditing(true); }}
-                            className="flex-1 md:flex-initial px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                            className="w-full sm:w-auto px-5 py-2.5 rounded-2xl shadow-lg text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-all flex items-center justify-center gap-2"
                         >
                             + Nova Escala / Plantão
                         </button>
@@ -356,8 +358,8 @@ export const ScalesPage: React.FC = () => {
                 {/* Calendar */}
                 <div className="relative">
                     {loading && (
-                        <div className="absolute inset-0 bg-white/50 dark:bg-gray-800/50 flex justify-center items-center z-10 rounded-lg">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                        <div className="absolute inset-0 bg-[#0b1329]/60 backdrop-blur-xs flex justify-center items-center z-10 rounded-3xl">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                         </div>
                     )}
                     <CalendarView

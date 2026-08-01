@@ -11,9 +11,14 @@ import {
     subMonths,
     addWeeks,
     subWeeks,
-    isToday
+    isToday,
+    isSameDay,
+    parseISO,
+    isBefore,
+    startOfDay
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { ChevronLeft, ChevronRight, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import type { ShiftEvent, ShiftScale } from '../types';
 
 interface CalendarViewProps {
@@ -34,6 +39,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     onViewDateChange
 }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [viewMode, setViewMode] = useState<ViewMode>('month');
 
     // Navegação
@@ -56,20 +62,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     const today = () => {
         const newDate = new Date();
         setCurrentDate(newDate);
+        setSelectedDate(newDate);
         onViewDateChange?.(newDate);
     };
 
-    // Geração dos dias do grid
+    // Geração dos dias do grid (segunda-feira como início da semana)
     const getDays = () => {
         let start, end;
         if (viewMode === 'month') {
             const monthStart = startOfMonth(currentDate);
             const monthEnd = endOfMonth(currentDate);
-            start = startOfWeek(monthStart);
-            end = endOfWeek(monthEnd);
+            start = startOfWeek(monthStart, { weekStartsOn: 1 });
+            end = endOfWeek(monthEnd, { weekStartsOn: 1 });
         } else {
-            start = startOfWeek(currentDate);
-            end = endOfWeek(currentDate);
+            start = startOfWeek(currentDate, { weekStartsOn: 1 });
+            end = endOfWeek(currentDate, { weekStartsOn: 1 });
         }
         return eachDayOfInterval({ start, end });
     };
@@ -79,161 +86,197 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     // Helper para encontrar shifts do dia
     const getShiftsForDay = (day: Date) => {
         const dateStr = format(day, 'yyyy-MM-dd');
-        // Filter instead of find
-        const dayShifts = shifts.filter(s => s.date === dateStr && s.status !== 'canceled');
-        return dayShifts;
+        return shifts.filter(s => s.date === dateStr && s.status !== 'canceled');
     };
 
-    const getShiftColor = (shift: ShiftEvent) => {
-        // 1. Try denormalized category
-        let category = shift.scaleCategory;
+    // Helper para definir etiqueta (badge) do plantão (DIA, NOITE, FOLGA, AC-4, etc.)
+    const getBadgeInfo = (shift: ShiftEvent) => {
+        const code = shift.shiftTypeSnapshot?.code?.toUpperCase() || '';
+        const name = shift.shiftTypeSnapshot?.name?.toLowerCase() || '';
+        const category = shift.scaleCategory || (shift.scaleId ? scales.find(s => s.id === shift.scaleId)?.category : undefined);
+        const isNight = shift.shiftTypeSnapshot?.isNightShift;
 
-        // 2. Fallback to lookup in scales prop if missing
-        if (!category && shift.scaleId) {
-            const scale = scales.find(s => s.id === shift.scaleId);
-            if (scale) category = scale.category;
+        if (name.includes('folga') || (category as string) === 'Folga') {
+            return {
+                label: 'FOLGA',
+                colorClass: 'bg-[#22c55e] text-white shadow-sm',
+                dotClass: 'bg-[#22c55e]',
+                textClass: 'text-[#22c55e]'
+            };
         }
 
-        // 3. Map category to color
-        switch (category) {
-            case 'AC-4':
-                return '#10B981'; // Emerald 500 (Green)
-            case 'Suplementar':
-                return '#8B5CF6'; // Violet 500 (Purple)
-            case 'Troca':
-                return '#0EA5E9'; // Sky 500 (Blue) - Distinct from Navy Blue of Night Shift
-            case 'Outros':
-                return '#6B7280'; // Gray 500
-            case 'Diário':
-            default:
-                // For Diário or unknown, preserve the Semantic Color of the Shift Type (Day=Amber, Night=Blue, 24h=Red)
-                return shift.shiftTypeSnapshot?.color || '#6B7280'; // Fallback to gray if snapshot missing
+        if (category === 'AC-4' || shift.shiftTypeSnapshot?.isAC4) {
+            return {
+                label: 'AC-4',
+                colorClass: 'bg-[#10b981] text-white shadow-sm',
+                dotClass: 'bg-[#10b981]',
+                textClass: 'text-[#10b981]'
+            };
         }
+
+        if (isNight || code.includes('N') || name.includes('noite') || name.includes('noturno')) {
+            return {
+                label: 'NOITE',
+                colorClass: 'bg-[#1e293b] text-white border border-slate-700/80 shadow-sm',
+                dotClass: 'bg-[#334155]',
+                textClass: 'text-slate-300'
+            };
+        }
+
+        if (code.includes('24') || name.includes('24h') || shift.shiftTypeSnapshot?.hours === 24) {
+            return {
+                label: '24h',
+                colorClass: 'bg-[#ef4444] text-white shadow-sm',
+                dotClass: 'bg-[#ef4444]',
+                textClass: 'text-red-400'
+            };
+        }
+
+        // Default Dia
+        return {
+            label: 'DIA',
+            colorClass: 'bg-[#2563eb] text-white shadow-sm',
+            dotClass: 'bg-[#2563eb]',
+            textClass: 'text-blue-400'
+        };
     };
+
+    // Plantões futuros a partir do dia selecionado ou de hoje para a seção "Próximos serviços"
+    const todayStart = startOfDay(new Date());
+    const filterStartDate = isBefore(selectedDate, todayStart) ? selectedDate : todayStart;
+
+    const upcomingShifts = shifts
+        .filter(s => s.status !== 'canceled' && !isBefore(startOfDay(parseISO(s.date)), filterStartDate))
+        .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())
+        .slice(0, 10);
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-            {/* Header */}
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 gap-4 sm:gap-0">
-                <div className="flex items-center space-x-2">
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-white capitalize">
-                        {format(currentDate, viewMode === 'month' ? 'MMMM yyyy' : "'Semana de' d 'de' MMMM", { locale: ptBR })}
-                    </h2>
-                </div>
+        <div className="bg-[#0b1329] text-white rounded-3xl p-4 sm:p-6 shadow-2xl border border-slate-800/80 max-w-4xl mx-auto space-y-6">
 
-                <div className="flex items-center justify-between w-full sm:w-auto space-x-2">
-                    <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 mr-2">
+            {/* Header com Nome do Mês Centralizado e Setas < Mês 2025 > estilo Print 1 */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-2 border-b border-slate-800/60">
+
+                {/* Visual Mode Selector & Hoje */}
+                <div className="flex items-center space-x-2 order-2 sm:order-1">
+                    <div className="flex bg-slate-900/90 rounded-xl p-1 border border-slate-800">
                         <button
                             onClick={() => setViewMode('month')}
-                            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${viewMode === 'month'
-                                ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-white shadow-sm'
-                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${viewMode === 'month'
+                                    ? 'bg-slate-800 text-white shadow'
+                                    : 'text-slate-400 hover:text-white'
                                 }`}
                         >
                             Mês
                         </button>
                         <button
                             onClick={() => setViewMode('week')}
-                            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${viewMode === 'week'
-                                ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-white shadow-sm'
-                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${viewMode === 'week'
+                                    ? 'bg-slate-800 text-white shadow'
+                                    : 'text-slate-400 hover:text-white'
                                 }`}
                         >
                             Semana
                         </button>
                     </div>
 
-                    <div className="flex items-center space-x-1">
-                        <button
-                            onClick={prev}
-                            className="p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full min-h-[44px] min-w-[44px] flex items-center justify-center"
-                            aria-label="Anterior"
-                        >
-                            <span className="text-xl text-gray-900 dark:text-white">←</span>
-                        </button>
-                        <button
-                            onClick={today}
-                            className="px-4 py-2 text-sm font-medium bg-indigo-50 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-lg hover:bg-indigo-100 min-h-[44px] flex items-center"
-                        >
-                            Hoje
-                        </button>
-                        <button
-                            onClick={next}
-                            className="p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full min-h-[44px] min-w-[44px] flex items-center justify-center"
-                            aria-label="Próximo"
-                        >
-                            <span className="text-xl text-gray-900 dark:text-white">→</span>
-                        </button>
-                    </div>
+                    <button
+                        onClick={today}
+                        className="px-3 py-1.5 text-xs font-semibold bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 rounded-xl transition-all"
+                    >
+                        Hoje
+                    </button>
                 </div>
+
+                {/* Central Month Title with Nav Arrows */}
+                <div className="flex items-center space-x-4 order-1 sm:order-2">
+                    <button
+                        onClick={prev}
+                        className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-full transition-all"
+                        aria-label="Mês Anterior"
+                    >
+                        <ChevronLeft className="w-6 h-6" />
+                    </button>
+
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-wide text-white capitalize min-w-[150px] text-center">
+                        {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
+                    </h2>
+
+                    <button
+                        onClick={next}
+                        className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-full transition-all"
+                        aria-label="Próximo Mês"
+                    >
+                        <ChevronRight className="w-6 h-6" />
+                    </button>
+                </div>
+
+                <div className="hidden sm:block order-3 w-[120px]" />
             </div>
 
-            {/* Grid */}
-            <div className={`grid ${viewMode === 'month' ? 'grid-cols-7' : 'grid-cols-7'} gap-px bg-gray-200 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-700`}>
-                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                    <div key={day} className="bg-gray-50 dark:bg-gray-800 p-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400">
+            {/* Dias da Semana (SEG TER QUA QUI SEX SÁB DOM) */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center">
+                {['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'].map(day => (
+                    <div key={day} className="text-xs font-semibold tracking-wider text-slate-400 py-1">
                         {day}
                     </div>
                 ))}
             </div>
 
-            <div className={`grid ${viewMode === 'month' ? 'grid-cols-7' : 'grid-cols-7'} gap-px bg-gray-200 dark:bg-gray-700`}>
+            {/* Grid dos Dias do Calendário */}
+            <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
                 {days.map(day => {
-                    const shiftsForDay = getShiftsForDay(day);
+                    const dayShifts = getShiftsForDay(day);
                     const isCurrentMonth = isSameMonth(day, currentDate);
                     const isTodayDate = isToday(day);
+                    const isSelected = isSameDay(day, selectedDate);
 
                     return (
                         <div
                             key={day.toISOString()}
-                            onClick={() => onDateClick && onDateClick(day)}
+                            onClick={() => {
+                                setSelectedDate(day);
+                                onDateClick?.(day);
+                            }}
                             className={`
-                min-h-[80px] sm:min-h-[120px] bg-white dark:bg-gray-800 p-1 sm:p-2 relative hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors cursor-pointer
-                ${!isCurrentMonth && viewMode === 'month' ? 'bg-gray-50 dark:bg-gray-900' : ''}
-              `}
+                                min-h-[72px] sm:min-h-[88px] rounded-2xl p-1.5 sm:p-2 flex flex-col justify-between transition-all cursor-pointer relative group
+                                ${isCurrentMonth ? 'bg-[#131b2e] hover:bg-[#18233c]' : 'bg-[#0e1628]/40 text-slate-600 opacity-40'}
+                                ${isSelected ? 'ring-2 ring-blue-500 bg-[#172341] shadow-lg shadow-blue-500/10' : 'border border-slate-800/60'}
+                            `}
                         >
-                            <div className={`
-                text-xs sm:text-sm font-medium mb-1
-                ${isTodayDate
-                                    ? 'bg-indigo-600 text-white w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full'
-                                    : (!isCurrentMonth && viewMode === 'month' ? 'text-gray-400 dark:text-gray-600' : 'text-gray-700 dark:text-gray-300')
-                                }
-              `}>
-                                {format(day, 'd')}
+                            {/* Número do Dia */}
+                            <div className="flex justify-center items-center">
+                                <span className={`
+                                    text-xs sm:text-sm font-semibold tracking-tight
+                                    ${isTodayDate
+                                        ? 'bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center shadow'
+                                        : isCurrentMonth ? 'text-white' : 'text-slate-500'
+                                    }
+                                `}>
+                                    {format(day, 'd')}
+                                </span>
                             </div>
 
+                            {/* Badges de Plantões */}
                             <div className="flex flex-col gap-1 mt-1">
-                                {shiftsForDay.map(shift => {
-                                    // Get tooltip with actual times if manually overridden
-                                    const getTooltip = () => {
-                                        if (!shift.shiftTypeSnapshot) return 'Plantão';
-
-                                        if (shift.isManualOverride && shift.startTime && shift.endTime) {
-                                            // Use actual manual times
-                                            const start = shift.startTime.toDate();
-                                            const end = shift.endTime.toDate();
-                                            return `${shift.shiftTypeSnapshot.name} - ${format(start, 'HH:mm')} às ${format(end, 'HH:mm')}`;
-                                        }
-
-                                        // Use original shift type times
-                                        return `${shift.shiftTypeSnapshot.name} - ${shift.shiftTypeSnapshot.startTime} às ${shift.shiftTypeSnapshot.endTime}`;
-                                    };
-
+                                {dayShifts.map(shift => {
+                                    const badge = getBadgeInfo(shift);
                                     return (
                                         <div
                                             key={shift.id}
-                                            onClick={(e) => { e.stopPropagation(); onShiftClick && onShiftClick(shift); }}
-                                            className="p-1 rounded text-[10px] sm:text-xs font-semibold text-white shadow-sm overflow-hidden text-ellipsis whitespace-nowrap hover:opacity-90 transition-opacity min-h-[24px] flex items-center"
-                                            style={{ backgroundColor: getShiftColor(shift) }}
-                                            title={getTooltip()}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedDate(day);
+                                                onShiftClick?.(shift);
+                                            }}
+                                            className={`
+                                                ${badge.colorClass}
+                                                text-[10px] sm:text-[11px] font-bold px-1 sm:px-2 py-0.5 rounded-md
+                                                uppercase tracking-wider text-center transition-transform hover:scale-105
+                                                truncate cursor-pointer
+                                            `}
+                                            title={`${shift.shiftTypeSnapshot?.name || 'Plantão'} (${shift.shiftTypeSnapshot?.startTime} - ${shift.shiftTypeSnapshot?.endTime})`}
                                         >
-                                            <div className="flex justify-between items-center w-full px-1">
-                                                <span>{shift.shiftTypeSnapshot?.code || 'N/A'}</span>
-                                                <span className="opacity-75 font-normal ml-1 hidden sm:inline">
-                                                    {shift.shiftTypeSnapshot?.startTime || ''}
-                                                </span>
-                                            </div>
+                                            {badge.label}
                                         </div>
                                     );
                                 })}
@@ -242,6 +285,73 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     );
                 })}
             </div>
+
+            {/* Legenda de Plantões */}
+            <div className="flex items-center justify-center flex-wrap gap-4 pt-3 pb-2 text-xs font-semibold border-t border-slate-800/60">
+                <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-[#2563eb] inline-block shadow-sm" />
+                    <span className="text-slate-300">DIA</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-[#1e293b] border border-slate-600 inline-block shadow-sm" />
+                    <span className="text-slate-300">NOITE</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-[#22c55e] inline-block shadow-sm" />
+                    <span className="text-slate-300">FOLGA</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-[#10b981] inline-block shadow-sm" />
+                    <span className="text-slate-300">AC-4</span>
+                </div>
+            </div>
+
+            {/* Seção Próximos Serviços (Estilo Print 1) */}
+            <div className="pt-4 space-y-3">
+                <h3 className="text-base sm:text-lg font-bold text-white tracking-wide">
+                    Próximos serviços
+                </h3>
+
+                {upcomingShifts.length === 0 ? (
+                    <div className="bg-[#131b2e] border border-slate-800/80 rounded-2xl p-4 text-center text-slate-400 text-sm">
+                        Nenhum serviço agendado para os próximos dias.
+                    </div>
+                ) : (
+                    <div className="space-y-2.5">
+                        {upcomingShifts.map(shift => {
+                            const badge = getBadgeInfo(shift);
+                            const shiftDateObj = parseISO(shift.date);
+                            const formattedDate = format(shiftDateObj, 'dd/MM/yyyy', { locale: ptBR });
+
+                            return (
+                                <div
+                                    key={shift.id}
+                                    onClick={() => onShiftClick?.(shift)}
+                                    className="bg-[#131b2e] hover:bg-[#19243d] border border-slate-800/80 hover:border-slate-700/80 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between transition-all cursor-pointer group shadow-sm"
+                                >
+                                    <div className="flex items-center space-x-3.5">
+                                        {/* Dot Indicator */}
+                                        <div className={`w-3.5 h-3.5 rounded-full ${badge.dotClass} flex-shrink-0 shadow`} />
+
+                                        <div>
+                                            <div className="text-sm sm:text-base font-semibold text-slate-100 group-hover:text-white transition-colors">
+                                                {formattedDate}
+                                            </div>
+                                            <div className={`text-xs sm:text-sm font-bold ${badge.textClass} capitalize`}>
+                                                {shift.shiftTypeSnapshot?.name || badge.label}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <ChevronRightIcon className="w-5 h-5 text-slate-500 group-hover:text-slate-200 transition-colors" />
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
         </div>
     );
 };
+

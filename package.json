@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "npm --prefix web-app run dev",
+    "build": "npm --prefix web-app run build",
+    "preview": "npm --prefix web-app run preview"
   },
   "dependencies": {
 

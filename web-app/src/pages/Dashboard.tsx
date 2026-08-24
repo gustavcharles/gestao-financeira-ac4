@@ -17,7 +17,9 @@ import {
     Bell,
     TrendingDown,
     ChevronDown,
-    Sparkles
+    Sparkles,
+    FileText,
+    ExternalLink
 } from 'lucide-react';
 import {
     AreaChart,
@@ -300,7 +302,19 @@ export const Dashboard = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
+                    <a
+                        href="https://folhapagamento.sistemas.go.gov.br/folhapagamento/control?cmd=ConsContraCheque"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/40 hover:to-indigo-600/40 text-blue-300 hover:text-white border border-blue-500/30 hover:border-blue-400 transition-all font-semibold text-xs shadow-sm group"
+                        title="Consultar Contracheque GO"
+                    >
+                        <FileText className="w-4 h-4 text-blue-400 group-hover:scale-110 transition-transform" />
+                        <span className="hidden sm:inline">Contracheque GO</span>
+                        <ExternalLink className="w-3 h-3 text-blue-400/80" />
+                    </a>
+
                     <button className="p-2.5 rounded-2xl bg-slate-900/90 text-slate-400 hover:text-white border border-slate-800 transition-all relative">
                         <Bell className="w-5 h-5" />
                         <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-500" />
@@ -459,6 +473,41 @@ export const Dashboard = () => {
                 />
 
                 <ExpenseForecastCard transactions={transactions} />
+            </div>
+
+            {/* Banner / Card: Consulta de Contracheque GO */}
+            <div className="bg-gradient-to-r from-[#0d162d] via-[#111e3d] to-[#0d162d] border border-blue-900/40 hover:border-blue-500/40 rounded-3xl p-5 sm:p-6 shadow-xl transition-all relative overflow-hidden group">
+                <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-44 h-44 bg-blue-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-blue-500/20 transition-all"></div>
+                <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-start sm:items-center gap-3.5">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-blue-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-md shrink-0 mt-0.5 sm:mt-0">
+                            <FileText className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-base font-bold text-white">
+                                    Portal do Contracheque GO
+                                </h3>
+                                <span className="text-[10px] font-semibold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                                    Governo de Goiás
+                                </span>
+                            </div>
+                            <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                                Acesse o sistema oficial da Folha de Pagamento do Estado para consultar, visualizar e emitir seus contracheques.
+                            </p>
+                        </div>
+                    </div>
+
+                    <a
+                        href="https://folhapagamento.sistemas.go.gov.br/folhapagamento/control?cmd=ConsContraCheque"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-5 py-3 rounded-2xl text-xs font-bold transition-all shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40 cursor-pointer shrink-0 border border-blue-400/30 group-hover:scale-[1.02]"
+                    >
+                        <span>Emitir Contracheque</span>
+                        <ExternalLink className="w-3.5 h-3.5 text-blue-100" />
+                    </a>
+                </div>
             </div>
 
             {/* Card 3: Minhas Escalas (Estilo Print) */}

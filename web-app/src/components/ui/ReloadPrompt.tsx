@@ -4,17 +4,7 @@ import { useEffect, useState } from 'react';
 
 export const ReloadPrompt = () => {
     const [dismissed, setDismissed] = useState(false);
-
-    // Suprimir prompt se acabamos de atualizar nos últimos 10 minutos
-    useEffect(() => {
-        const lastUpdate = sessionStorage.getItem('pwa-last-update-attempt');
-        if (lastUpdate) {
-            const now = Date.now();
-            if (now - parseInt(lastUpdate) < 10 * 60 * 1000) {
-                setDismissed(true);
-            }
-        }
-    }, []);
+    const [isUpdating, setIsUpdating] = useState(false);
 
     const {
         offlineReady: [offlineReady, setOfflineReady],
@@ -22,23 +12,41 @@ export const ReloadPrompt = () => {
         updateServiceWorker,
     } = useRegisterSW({
         onRegisteredSW(swUrl, r) {
-            console.log(`[PWA] Service Worker at: ${swUrl}`);
+            console.log(`[PWA] Service Worker registrado em: ${swUrl}`);
             if (r) {
-                // Verificar atualizações a cada hora
+                // Verificar atualizações periodicamente
                 setInterval(() => {
                     r.update();
-                }, 60 * 60 * 1000);
+                }, 30 * 60 * 1000);
 
-                // Se houver um worker esperando, e não tivermos suprimido, garantir que o estado reflita isso
-                if (r.waiting && !dismissed) {
+                // Se houver um worker esperando, indicar atualização necessária
+                if (r.waiting) {
                     setNeedRefresh(true);
                 }
             }
         },
         onRegisterError(error) {
-            console.log('SW registration error', error);
+            console.error('[PWA] Erro no registro do Service Worker:', error);
         },
     });
+
+    // Escutar mudança de controlador (quando o novo SW assume o controle de fato)
+    useEffect(() => {
+        if ('serviceWorker' in navigator) {
+            let refreshing = false;
+            const handleControllerChange = () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    console.log('[PWA] Novo Service Worker ativo, recarregando página...');
+                    window.location.reload();
+                }
+            };
+            navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+            return () => {
+                navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+            };
+        }
+    }, []);
 
     // Auto-fechar mensagem de "Pronto para uso offline" após 5 segundos
     useEffect(() => {
@@ -56,7 +64,35 @@ export const ReloadPrompt = () => {
         setDismissed(true);
     };
 
-    // Não mostrar se suprimido ou se nada a mostrar
+    const handleApplyUpdate = async () => {
+        if (isUpdating) return;
+        setIsUpdating(true);
+        console.log('[PWA] Aplicando atualização do Service Worker...');
+
+        try {
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const reg of registrations) {
+                    if (reg.waiting) {
+                        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
+                }
+            }
+
+            // Dispara atualização através do helper oficial
+            await updateServiceWorker(true);
+
+            // Fallback de recarregamento caso o evento controllerchange não seja acionado em 1.5s
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } catch (err) {
+            console.error('[PWA] Erro ao disparar atualização:', err);
+            window.location.reload();
+        }
+    };
+
+    // Não mostrar se suprimido pelo usuário ou se nada a mostrar
     if (dismissed || (!offlineReady && !needRefresh)) return null;
 
     return (
@@ -64,7 +100,7 @@ export const ReloadPrompt = () => {
             <div className="bg-slate-800 dark:bg-slate-700 text-white p-4 rounded-xl shadow-2xl border border-slate-700 flex flex-col gap-3">
                 <div className="flex items-start gap-3">
                     <div className="p-2 bg-primary-600 rounded-lg shrink-0">
-                        {needRefresh ? <RefreshCw className="animate-spin-slow" size={20} /> : <AlertCircle size={20} />}
+                        {needRefresh ? <RefreshCw className={isUpdating ? "animate-spin" : "animate-spin-slow"} size={20} /> : <AlertCircle size={20} />}
                     </div>
                     <div className="flex-1 pt-1">
                         <h3 className="font-semibold text-sm">
@@ -72,7 +108,7 @@ export const ReloadPrompt = () => {
                         </h3>
                         <p className="text-xs text-slate-300 mt-1">
                             {needRefresh
-                                ? 'Uma nova atualização foi encontrada. Atualize para ver as novidades.'
+                                ? 'Uma nova atualização foi encontrada. Atualize para carregar as novidades.'
                                 : 'O aplicativo foi salvo em cache e está pronto para funcionar offline.'}
                         </p>
                     </div>
@@ -83,37 +119,12 @@ export const ReloadPrompt = () => {
 
                 {needRefresh && (
                     <button
-                        onClick={async () => {
-                            console.log('[PWA] Forçando atualização do service worker...');
-
-                            // Marcar tentativa de atualização para evitar prompt infinito após reload
-                            sessionStorage.setItem('pwa-last-update-attempt', Date.now().toString());
-                            setDismissed(true);
-
-                            try {
-                                if ('serviceWorker' in navigator) {
-                                    const registrations = await navigator.serviceWorker.getRegistrations();
-                                    for (const reg of registrations) {
-                                        if (reg.waiting) {
-                                            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-                                        }
-                                    }
-                                }
-
-                                updateServiceWorker(true);
-
-                                setTimeout(() => {
-                                    window.location.reload();
-                                }, 1000);
-                            } catch (err) {
-                                console.error('[PWA] Erro ao atualizar:', err);
-                                window.location.reload();
-                            }
-                        }}
-                        className="w-full bg-primary-600 hover:bg-primary-700 active:scale-[0.98] text-white text-sm font-medium py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg"
+                        onClick={handleApplyUpdate}
+                        disabled={isUpdating}
+                        className="w-full bg-primary-600 hover:bg-primary-700 disabled:opacity-70 active:scale-[0.98] text-white text-sm font-medium py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg"
                     >
-                        <RefreshCw size={16} />
-                        Atualizar agora
+                        <RefreshCw size={16} className={isUpdating ? "animate-spin" : ""} />
+                        {isUpdating ? 'Atualizando...' : 'Atualizar agora'}
                     </button>
                 )}
             </div>

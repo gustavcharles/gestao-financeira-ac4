@@ -4,6 +4,9 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    emptyOutDir: true,
+  },
   plugins: [
     react(),
     VitePWA({
@@ -12,7 +15,9 @@ export default defineConfig({
       workbox: {
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: true,
+        // Atenção: skipWaiting NÃO deve ser true aqui quando registerType é 'prompt',
+        // pois o skipWaiting é controlado sob demanda pelo componente ReloadPrompt / updateServiceWorker
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
         // Cache assets Vite com hash (imutáveis) por 1 ano
         runtimeCaching: [
           {

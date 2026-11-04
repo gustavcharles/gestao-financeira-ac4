@@ -338,21 +338,11 @@ export const ScalesPage: React.FC = () => {
             <div className="flex flex-col space-y-6">
 
                 {/* Header Card */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-[#0b1329] border border-slate-800/80 p-4 sm:p-5 rounded-3xl shadow-xl gap-4">
-                    <div>
-                        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-wide">Minhas Escalas</h1>
-                        <p className="text-xs sm:text-sm text-slate-400">
-                            Gerencie suas escalas regulares e plantões extras
-                        </p>
-                    </div>
-                    <div className="flex gap-2 w-full sm:w-auto">
-                        <button
-                            onClick={() => { setEditingScaleId(null); setIsEditing(true); }}
-                            className="w-full sm:w-auto px-5 py-2.5 rounded-2xl shadow-lg text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-all flex items-center justify-center gap-2"
-                        >
-                            + Nova Escala / Plantão
-                        </button>
-                    </div>
+                <div className="bg-[#0b1329] border border-slate-800/80 p-4 sm:p-5 rounded-3xl shadow-xl">
+                    <h1 className="text-xl sm:text-2xl font-bold text-white tracking-wide">Minhas Escalas</h1>
+                    <p className="text-xs sm:text-sm text-slate-400">
+                        Gerencie suas escalas regulares e plantões extras clicando diretamente no dia desejado
+                    </p>
                 </div>
 
                 {/* Calendar */}
